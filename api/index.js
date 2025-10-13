@@ -74,6 +74,18 @@ async function parseBody(req) {
   });
 }
 
+// Convert empty strings to null recursively to avoid DB casting errors (e.g., uuid "")
+function normalizePayload(value) {
+  if (value === '') return null;
+  if (Array.isArray(value)) return value.map((v) => normalizePayload(v));
+  if (value && typeof value === 'object') {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = normalizePayload(v);
+    return out;
+  }
+  return value;
+}
+
 function getSort(query) {
   const sort = query.get('sort');
   if (!sort) return { column: 'created_date', ascending: false };
@@ -138,7 +150,8 @@ export default async function handler(req, res) {
     }
 
     if (req.method === 'POST') {
-      const body = await parseBody(req);
+      const raw = await parseBody(req);
+      const body = normalizePayload(raw);
       const { data, error } = await supabase.from(table).insert(body).select('*').single();
       if (error) return badRequest(res, error.message);
       return ok(res, data);
@@ -146,7 +159,8 @@ export default async function handler(req, res) {
 
     if (req.method === 'PUT') {
       if (!idMaybe) return badRequest(res, 'missing_id');
-      const body = await parseBody(req);
+      const raw = await parseBody(req);
+      const body = normalizePayload(raw);
       const { data, error } = await supabase
         .from(table)
         .update(body)
