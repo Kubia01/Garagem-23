@@ -201,7 +201,8 @@ export default function NewQuote() {
         ...quoteData,
         subtotal,
         total,
-        discount_value: discountValue,
+        // Persist the effective discount into the correct column
+        discount_amount: discountValue,
         amount_pending: total,
         amount_paid: 0,
         payment_status: "pendente"
