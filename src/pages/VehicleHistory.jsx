@@ -236,8 +236,34 @@ export default function VehicleHistory() {
       </html>
     `;
 
-    const withPrintScript = htmlContent.replace('</body>', '<script>window.addEventListener("load",()=>setTimeout(()=>window.print(),200));</script></body>');
-    pdfWindow.document.write(withPrintScript);
+    // Preload logo and wait images before print (improves reliability on Vercel)
+    const withPreload = htmlContent.replace('</head>', `
+      <link rel="preload" as="image" href="${logoUrl}">
+    </head>`);
+    const withWaitImages = withPreload.replace('</body>', `
+      <script>
+        (function(){
+          function waitForImages(timeoutMs){
+            return new Promise(function(resolve){
+              var imgs = Array.prototype.slice.call(document.images || []);
+              if (imgs.length === 0) return resolve();
+              var remaining = imgs.length;
+              var timer = setTimeout(function(){ resolve(); }, timeoutMs || 10000);
+              function done(){ if (--remaining === 0) { clearTimeout(timer); resolve(); } }
+              imgs.forEach(function(img){
+                if (img.complete && img.naturalWidth > 0) { done(); return; }
+                img.addEventListener('load', done, { once: true });
+                img.addEventListener('error', done, { once: true });
+              });
+            });
+          }
+          window.addEventListener('load', function(){
+            waitForImages(10000).then(function(){ setTimeout(function(){ window.print(); }, 150); });
+          });
+        })();
+      </script>
+    </body>`);
+    pdfWindow.document.write(withWaitImages);
     pdfWindow.document.close();
   };
 
