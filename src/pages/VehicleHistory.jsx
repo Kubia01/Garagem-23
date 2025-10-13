@@ -139,7 +139,7 @@ export default function VehicleHistory() {
       <body>
         <div class="container">
           <div class="header">
-            <img src="${logoUrl}" alt="${import.meta.env.VITE_COMPANY_NAME || 'Sua Oficina Mecânica'}" style="max-width: 150px; margin-bottom: 10px;" crossorigin="anonymous" loading="eager" />
+            <img src="${logoUrl}" alt="${import.meta.env.VITE_COMPANY_NAME || 'Sua Oficina Mecânica'}" style="max-width: 150px; margin-bottom: 10px;" loading="eager" />
             <h1>${import.meta.env.VITE_COMPANY_NAME || 'Sua Oficina Mecânica'}</h1>
             ${import.meta.env.VITE_COMPANY_ADDRESS ? `<p>${import.meta.env.VITE_COMPANY_ADDRESS}</p>` : ''}
             ${import.meta.env.VITE_COMPANY_CONTACT ? `<p>${import.meta.env.VITE_COMPANY_CONTACT}</p>` : ''}
