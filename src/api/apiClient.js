@@ -1,6 +1,6 @@
 // Generic API client for provider-agnostic REST backends
 
-const API_BASE_URL = (import.meta?.env?.VITE_API_BASE_URL || '').replace(/\/$/, '');
+const API_BASE_URL = (import.meta?.env?.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
 let RESOURCE_MAP = {};
 try {
   RESOURCE_MAP = JSON.parse(import.meta?.env?.VITE_API_RESOURCE_MAP || '{}');
