@@ -1,0 +1,157 @@
+
+
+import React from "react";
+import { Link, useLocation } from "react-router-dom";
+import { createPageUrl } from "@/utils";
+import {
+  LayoutDashboard,
+  Users,
+  FileText,
+  Wrench,
+  Bell,
+  Menu,
+  X,
+  Search
+} from "lucide-react";
+import {
+  Sidebar,
+  SidebarContent,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuButton,
+  SidebarMenuItem,
+  SidebarHeader,
+  SidebarProvider,
+  SidebarTrigger,
+} from "@/components/ui/sidebar";
+
+const navigationItems = [
+  {
+    title: "Dashboard",
+    url: createPageUrl("Dashboard"),
+    icon: LayoutDashboard,
+  },
+  {
+    title: "Consulta de Placa",
+    url: createPageUrl("VehicleSearch"),
+    icon: Search,
+  },
+  {
+    title: "Clientes",
+    url: createPageUrl("Customers"),
+    icon: Users,
+  },
+  {
+    title: "Cotações",
+    url: createPageUrl("Quotes"),
+    icon: FileText,
+  },
+  {
+    title: "Ordens de Serviço",
+    url: createPageUrl("ServiceOrders"),
+    icon: Wrench,
+  },
+  {
+    title: "Catálogo",
+    url: createPageUrl("ServiceCatalog"),
+    icon: Wrench,
+  },
+  {
+    title: "Fornecedores",
+    url: createPageUrl("Suppliers"),
+    icon: Users,
+  },
+  {
+    title: "Lembretes",
+    url: createPageUrl("Reminders"),
+    icon: Bell,
+  },
+];
+
+export default function Layout({ children, currentPageName }) {
+  const location = useLocation();
+
+  return (
+    <SidebarProvider>
+      <style>
+        {`
+          :root {
+            --primary: 220 85% 50%;
+            --primary-dark: 220 85% 40%;
+            --accent: 25 95% 55%;
+            --background: 220 15% 98%;
+            --card: 0 0% 100%;
+            --foreground: 220 15% 15%;
+          }
+
+          body {
+            background: linear-gradient(135deg, hsl(var(--background)) 0%, hsl(220 15% 95%) 100%);
+          }
+        `}
+      </style>
+      <div className="min-h-screen flex w-full">
+        <Sidebar className="border-r border-gray-200 bg-white/80 backdrop-blur-sm">
+          <SidebarHeader className="border-b border-gray-200 p-6">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center shadow-lg">
+                <Wrench className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h2 className="font-bold text-lg text-gray-900">AutoMaster</h2>
+                <p className="text-xs text-gray-500">Gestão de Oficina</p>
+              </div>
+            </div>
+          </SidebarHeader>
+
+          <SidebarContent className="p-3">
+            <SidebarGroup>
+              <SidebarGroupLabel className="text-xs font-semibold text-gray-500 uppercase tracking-wider px-3 py-2 mb-1">
+                Menu Principal
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu>
+                  {navigationItems.map((item) => (
+                    <SidebarMenuItem key={item.title}>
+                      <SidebarMenuButton
+                        asChild
+                        className={`hover:bg-blue-50 hover:text-blue-700 transition-all duration-200 rounded-xl mb-1 ${
+                          location.pathname === item.url ? 'bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 hover:text-white shadow-md' : ''
+                        }`}
+                      >
+                        <Link to={item.url} className="flex items-center gap-3 px-4 py-3">
+                          <item.icon className="w-5 h-5" />
+                          <span className="font-medium">{item.title}</span>
+                        </Link>
+                      </SidebarMenuButton>
+                    </SidebarMenuItem>
+                  ))}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          </SidebarContent>
+        </Sidebar>
+
+        <main className="flex-1 flex flex-col">
+          <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 px-6 py-4 md:hidden sticky top-0 z-10">
+            <div className="flex items-center gap-4">
+              <SidebarTrigger className="hover:bg-gray-100 p-2 rounded-lg transition-colors duration-200" />
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
+                  <Wrench className="w-4 h-4 text-white" />
+                </div>
+                <h1 className="text-lg font-bold text-gray-900">AutoMaster</h1>
+              </div>
+            </div>
+          </header>
+
+          <div className="flex-1 overflow-auto">
+            {children}
+          </div>
+        </main>
+      </div>
+    </SidebarProvider>
+  );
+}
+
