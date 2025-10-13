@@ -97,7 +97,8 @@ export default function QuoteDetail() {
       ...editedQuote,
       subtotal,
       total,
-      discount_value: discountValue,
+      // Persist the effective discount into the correct column
+      discount_amount: discountValue,
       amount_pending: total - (editedQuote.amount_paid || 0)
     });
 
