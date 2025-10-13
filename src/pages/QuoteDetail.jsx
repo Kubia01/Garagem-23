@@ -642,7 +642,7 @@ export default function QuoteDetail() {
           <div class="content">
             <div class="header">
               <div class="logo-section">
-                <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68dfdf586fce6eca730822a5/db616808d_image.png" alt="Garagem 23" class="logo-img">
+                <img src="${import.meta.env.VITE_COMPANY_LOGO_URL || '/favicon.svg'}" alt="${import.meta.env.VITE_COMPANY_NAME || 'Sua Empresa'}" class="logo-img">
               </div>
               <div class="header-right">
                 <div class="doc-title">ORÇAMENTO</div>
@@ -651,9 +651,9 @@ export default function QuoteDetail() {
             </div>
             
             <div class="company-info">
-              <strong>GARAGEM 23 OFICINA MECÂNICA</strong><br>
-              📍 Av. Nossa Senhora dos Navegantes, 74 - Eldorado, Diadema - SP | CEP: 09972-260 | 📱 (11) 9 5230-6744 | ✉️ Garagem23oficinamecanica@gmail.com<br>
-              <strong>Data:</strong> ${format(new Date(quote.created_date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} | <strong>CNPJ:</strong> 39.504.231/0001-78
+              <strong>${import.meta.env.VITE_COMPANY_NAME || 'Sua Oficina Mecânica'}</strong><br>
+              ${import.meta.env.VITE_COMPANY_ADDRESS || ''} ${import.meta.env.VITE_COMPANY_CONTACT ? `| ${import.meta.env.VITE_COMPANY_CONTACT}` : ''}<br>
+              <strong>Data:</strong> ${format(new Date(quote.created_date), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })} ${import.meta.env.VITE_COMPANY_CNPJ ? `| <strong>CNPJ:</strong> ${import.meta.env.VITE_COMPANY_CNPJ}` : ''}
             </div>
             
             <div class="info-container">
@@ -730,28 +730,28 @@ export default function QuoteDetail() {
               <div class="diagram">
                 <div class="diagram-title">Vista Frontal</div>
                 <div class="car-diagram">
-                  <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68dfdf586fce6eca730822a5/0208ef49c_Frontal.PNG" alt="Vista Frontal">
+                  <img src="${import.meta.env.VITE_VEHICLE_DIAGRAM_FRONT_URL || '/vehicle-front.png'}" alt="Vista Frontal">
                 </div>
               </div>
               
               <div class="diagram">
                 <div class="diagram-title">Vista Traseira</div>
                 <div class="car-diagram">
-                  <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68dfdf586fce6eca730822a5/471a38b76_Traseira.PNG" alt="Vista Traseira">
+                  <img src="${import.meta.env.VITE_VEHICLE_DIAGRAM_REAR_URL || '/vehicle-rear.png'}" alt="Vista Traseira">
                 </div>
               </div>
               
               <div class="diagram">
                 <div class="diagram-title">Lateral Esquerda</div>
                 <div class="car-diagram">
-                  <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68dfdf586fce6eca730822a5/d6e6793a7_Lateralesquerda.PNG" alt="Lateral Esquerda">
+                  <img src="${import.meta.env.VITE_VEHICLE_DIAGRAM_LEFT_URL || '/vehicle-left.png'}" alt="Lateral Esquerda">
                 </div>
               </div>
               
               <div class="diagram">
                 <div class="diagram-title">Lateral Direita</div>
                 <div class="car-diagram">
-                  <img src="https://qtrypzzcjebvfcihiynt.supabase.co/storage/v1/object/public/base44-prod/public/68dfdf586fce6eca730822a5/8c46c9b2c_Lateraldireita.PNG" alt="Lateral Direita">
+                  <img src="${import.meta.env.VITE_VEHICLE_DIAGRAM_RIGHT_URL || '/vehicle-right.png'}" alt="Lateral Direita">
                 </div>
               </div>
             </div>
@@ -770,7 +770,7 @@ export default function QuoteDetail() {
             </div>
             
             <div class="footer">
-              <div class="footer-company">GARAGEM 23 OFICINA MECÂNICA</div>
+              <div class="footer-company">${import.meta.env.VITE_COMPANY_NAME || 'Sua Oficina Mecânica'}</div>
               <p>Orçamento gerado em ${format(new Date(), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}</p>
             </div>
           </div>
