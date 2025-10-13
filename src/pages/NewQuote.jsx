@@ -286,9 +286,8 @@ export default function NewQuote() {
         await Promise.all(automaticReminderPromises);
       }
 
-      // IMPORTANTE: Lembretes customizados SÓ devem ser criados se a cotação for APROVADA
-      // Se a cotação estiver em análise, os lembretes serão criados quando for aprovada
-      if (customReminders.length > 0 && quoteData.status === "aprovada") {
+      // Lembretes customizados: persistir sempre, e exibir apenas quando a cotação for aprovada
+      if (customReminders.length > 0) {
         const customerName = customers.find(c => c.id === quoteData.customer_id)?.name || "";
         const vehicle = vehicles.find(v => v.id === quoteData.vehicle_id);
         const vehicleInfo = vehicle ? `${vehicle.brand} ${vehicle.model} - ${vehicle.license_plate}` : "";
@@ -321,9 +320,7 @@ export default function NewQuote() {
         });
 
         await Promise.all(customReminderPromises);
-        console.log(`✅ ${customReminders.length} lembrete(s) criado(s) - Cotação aprovada!`);
-      } else if (customReminders.length > 0) {
-        console.log(`⏳ ${customReminders.length} lembrete(s) serão criados quando a cotação for aprovada`);
+        console.log(`✅ ${customReminders.length} lembrete(s) customizado(s) criado(s)!`);
       }
 
       if (quoteData.vehicle_mileage > 0 && quoteData.vehicle_id) {

@@ -97,12 +97,19 @@ export default function ServiceOrderCard({ order, quote, customer, vehicle, cust
     };
 
     const pdfWindow = window.open('', '_blank');
-    
+    const baseUrl = window.location.origin;
+    const logoUrl = import.meta.env.VITE_COMPANY_LOGO_URL || `${baseUrl}/favicon.svg`;
+    const vehicleFrontUrl = import.meta.env.VITE_VEHICLE_DIAGRAM_FRONT_URL || `${baseUrl}/vehicle-front.png`;
+    const vehicleRearUrl = import.meta.env.VITE_VEHICLE_DIAGRAM_REAR_URL || `${baseUrl}/vehicle-rear.png`;
+    const vehicleLeftUrl = import.meta.env.VITE_VEHICLE_DIAGRAM_LEFT_URL || `${baseUrl}/vehicle-left.png`;
+    const vehicleRightUrl = import.meta.env.VITE_VEHICLE_DIAGRAM_RIGHT_URL || `${baseUrl}/vehicle-right.png`;
+
     const htmlContent = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="UTF-8">
+        <base href="${baseUrl}/">
         <title>Orçamento ${quote.quote_number}</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -472,7 +479,7 @@ export default function ServiceOrderCard({ order, quote, customer, vehicle, cust
           <div class="content">
             <div class="header">
               <div class="logo-section">
-                <img src="${import.meta.env.VITE_COMPANY_LOGO_URL || '/favicon.svg'}" alt="${import.meta.env.VITE_COMPANY_NAME || 'Sua Empresa'}" class="logo-img">
+                <img src="${logoUrl}" alt="${import.meta.env.VITE_COMPANY_NAME || 'Sua Empresa'}" class="logo-img" crossorigin="anonymous" loading="eager">
               </div>
               <div class="header-right">
                 <div class="doc-title">ORÇAMENTO</div>
@@ -561,28 +568,28 @@ export default function ServiceOrderCard({ order, quote, customer, vehicle, cust
                 <div class="diagram">
                   <div class="diagram-title">Vista Frontal</div>
                   <div class="car-diagram">
-                    <img src="${import.meta.env.VITE_VEHICLE_DIAGRAM_FRONT_URL || '/vehicle-front.png'}" alt="Vista Frontal">
+                    <img src="${vehicleFrontUrl}" alt="Vista Frontal" crossorigin="anonymous" loading="eager">
                   </div>
                 </div>
                 
                 <div class="diagram">
                   <div class="diagram-title">Vista Traseira</div>
                   <div class="car-diagram">
-                    <img src="${import.meta.env.VITE_VEHICLE_DIAGRAM_REAR_URL || '/vehicle-rear.png'}" alt="Vista Traseira">
+                    <img src="${vehicleRearUrl}" alt="Vista Traseira" crossorigin="anonymous" loading="eager">
                   </div>
                 </div>
                 
                 <div class="diagram">
                   <div class="diagram-title">Lateral Esquerda</div>
                   <div class="car-diagram">
-                    <img src="${import.meta.env.VITE_VEHICLE_DIAGRAM_LEFT_URL || '/vehicle-left.png'}" alt="Lateral Esquerda">
+                    <img src="${vehicleLeftUrl}" alt="Lateral Esquerda" crossorigin="anonymous" loading="eager">
                   </div>
                 </div>
                 
                 <div class="diagram">
                   <div class="diagram-title">Lateral Direita</div>
                   <div class="car-diagram">
-                    <img src="${import.meta.env.VITE_VEHICLE_DIAGRAM_RIGHT_URL || '/vehicle-right.png'}" alt="Lateral Direita">
+                    <img src="${vehicleRightUrl}" alt="Lateral Direita" crossorigin="anonymous" loading="eager">
                   </div>
                 </div>
               </div>

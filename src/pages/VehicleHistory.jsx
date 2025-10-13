@@ -98,12 +98,14 @@ export default function VehicleHistory() {
 
     // Reutilizar a mesma função de geração de PDF
     const pdfWindow = window.open('', '_blank');
-    
+    const baseUrl = window.location.origin;
+    const logoUrl = import.meta.env.VITE_COMPANY_LOGO_URL || `${baseUrl}/favicon.svg`;
     const htmlContent = `
       <!DOCTYPE html>
       <html>
       <head>
         <meta charset="UTF-8">
+        <base href="${baseUrl}/">
         <title>Orçamento ${quote.quote_number}</title>
         <style>
           body { font-family: 'Helvetica Neue', 'Helvetica', Arial, sans-serif; font-size: 10px; margin: 0; padding: 20px; color: #333; }
@@ -137,6 +139,7 @@ export default function VehicleHistory() {
       <body>
         <div class="container">
           <div class="header">
+            <img src="${logoUrl}" alt="${import.meta.env.VITE_COMPANY_NAME || 'Sua Oficina Mecânica'}" style="max-width: 150px; margin-bottom: 10px;" crossorigin="anonymous" loading="eager" />
             <h1>${import.meta.env.VITE_COMPANY_NAME || 'Sua Oficina Mecânica'}</h1>
             ${import.meta.env.VITE_COMPANY_ADDRESS ? `<p>${import.meta.env.VITE_COMPANY_ADDRESS}</p>` : ''}
             ${import.meta.env.VITE_COMPANY_CONTACT ? `<p>${import.meta.env.VITE_COMPANY_CONTACT}</p>` : ''}
@@ -233,9 +236,9 @@ export default function VehicleHistory() {
       </html>
     `;
 
-    pdfWindow.document.write(htmlContent);
+    const withPrintScript = htmlContent.replace('</body>', '<script>window.addEventListener("load",()=>setTimeout(()=>window.print(),200));</script></body>');
+    pdfWindow.document.write(withPrintScript);
     pdfWindow.document.close();
-    pdfWindow.print();
   };
 
   if (loading) {
