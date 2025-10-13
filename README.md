@@ -1,12 +1,12 @@
-# Base44 App
+# Oficina App
 
-
-This app was created automatically by Base44.
-It's a Vite+React app that communicates with the Base44 API.
+Vite + React app desacoplado de qualquer provedor específico. As integrações (API, domínio, assets e branding) são configuráveis via variáveis de ambiente.
 
 ## Running the app
 
 ```bash
+cp .env.example .env
+# Edite .env para apontar para seu backend
 npm install
 npm run dev
 ```
@@ -16,5 +16,3 @@ npm run dev
 ```bash
 npm run build
 ```
-
-For more information and support, please contact Base44 support at app@base44.com.

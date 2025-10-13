@@ -137,9 +137,9 @@ export default function VehicleHistory() {
       <body>
         <div class="container">
           <div class="header">
-            <h1>Sua Oficina Mecânica</h1>
-            <p>Rua Exemplo, 123 - Centro, Cidade, Estado</p>
-            <p>(XX) XXXX-XXXX | contato@suaoficina.com.br</p>
+            <h1>${import.meta.env.VITE_COMPANY_NAME || 'Sua Oficina Mecânica'}</h1>
+            ${import.meta.env.VITE_COMPANY_ADDRESS ? `<p>${import.meta.env.VITE_COMPANY_ADDRESS}</p>` : ''}
+            ${import.meta.env.VITE_COMPANY_CONTACT ? `<p>${import.meta.env.VITE_COMPANY_CONTACT}</p>` : ''}
           </div>
 
           <div style="background-color: #0056b3; color: white; padding: 10px; text-align: center; margin-bottom: 20px;">
