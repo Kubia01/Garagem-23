@@ -59,18 +59,18 @@ export default function QuoteCard({ quote, customerName, vehicleInfo, onRefresh 
 
         console.log("✅ Service Order created:", serviceOrder);
 
-        // Buscar lembretes customizados relacionados a esta cotação
-        const customReminders = await MaintenanceReminder.filter({ quote_id: quote.id });
+        // Buscar lembretes já existentes relacionados a esta cotação (evita duplicação)
+        const existingReminders = await MaintenanceReminder.filter({ quote_id: quote.id });
         
-        // Se NÃO existirem lembretes para esta cotação, criar agora
-        if (customReminders.length === 0) {
+        // Criar faltantes agora com base nos itens (idempotente)
+        {
           // Buscar dados necessários
           const quoteItems = await QuoteItem.filter({ quote_id: quote.id });
           const serviceItems = await ServiceItem.list();
           const customers = await Customer.filter({ id: quote.customer_id });
           const vehicles = await Vehicle.filter({ id: quote.vehicle_id });
           const customerData = customers[0];
-          const vehicleData = vehicles[0]; // Although vehicleData is fetched, it's not directly used in the reminder creation loop.
+          const vehicleData = vehicles[0];
 
           console.log("📋 Creating reminders - Quote Items:", quoteItems.length);
           
@@ -79,6 +79,8 @@ export default function QuoteCard({ quote, customerName, vehicleInfo, onRefresh 
           // Criar lembretes para cada item que tem período de substituição
           for (const quoteItem of quoteItems) {
             if (quoteItem.next_service_date || quoteItem.next_service_mileage) {
+              const alreadyExists = existingReminders.some(r => r.quote_item_id === quoteItem.id);
+              if (alreadyExists) continue;
               const reminderType = quoteItem.next_service_date && quoteItem.next_service_mileage
                 ? "ambos"
                 : quoteItem.next_service_date
@@ -112,8 +114,6 @@ export default function QuoteCard({ quote, customerName, vehicleInfo, onRefresh 
           if (remindersCreated > 0) {
             console.log(`✅ ${remindersCreated} lembrete(s) criado(s) automaticamente!`);
           }
-        } else {
-          console.log(`✅ Aprovada! ${customReminders.length} lembrete(s) customizado(s) já existem!`);
         }
         
         alert(`✅ Cotação aprovada e OS ${orderNumber} criada com sucesso!`);
