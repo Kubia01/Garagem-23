@@ -47,7 +47,23 @@ export default function ServiceItemForm({ item, onSubmit, onCancel }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(formData);
+    const sanitizeNumber = (value, fallback = 0) => {
+      if (value === '' || value === null || value === undefined) return fallback;
+      const num = Number(value);
+      return Number.isFinite(num) ? num : fallback;
+    };
+
+    const payload = {
+      ...formData,
+      sale_price: sanitizeNumber(formData.sale_price, 0),
+      cost_price: sanitizeNumber(formData.cost_price, 0),
+      labor_cost: sanitizeNumber(formData.labor_cost, 0),
+      current_stock: Math.max(0, parseInt(formData.current_stock ?? 0, 10) || 0),
+      minimum_stock: Math.max(0, parseInt(formData.minimum_stock ?? 0, 10) || 0),
+      supplier_id: formData.supplier_id ? formData.supplier_id : null,
+    };
+
+    onSubmit(payload);
   };
 
   const applyTemplate = (templateKey) => {
@@ -115,8 +131,11 @@ export default function ServiceItemForm({ item, onSubmit, onCancel }) {
                   type="number"
                   step="0.01"
                   min="0"
-                  value={formData.sale_price}
-                  onChange={(e) => setFormData({...formData, sale_price: parseFloat(e.target.value)})}
+                  value={formData.sale_price === '' ? '' : formData.sale_price}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFormData({ ...formData, sale_price: value === '' ? '' : parseFloat(value) });
+                  }}
                   required
                   className="border-gray-300"
                 />
@@ -128,8 +147,11 @@ export default function ServiceItemForm({ item, onSubmit, onCancel }) {
                   type="number"
                   step="0.01"
                   min="0"
-                  value={formData.cost_price}
-                  onChange={(e) => setFormData({...formData, cost_price: parseFloat(e.target.value)})}
+                  value={formData.cost_price === '' ? '' : formData.cost_price}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFormData({ ...formData, cost_price: value === '' ? '' : parseFloat(value) });
+                  }}
                   required
                   className="border-gray-300"
                 />
@@ -163,8 +185,11 @@ export default function ServiceItemForm({ item, onSubmit, onCancel }) {
                       id="current_stock"
                       type="number"
                       min="0"
-                      value={formData.current_stock}
-                      onChange={(e) => setFormData({...formData, current_stock: parseInt(e.target.value)})}
+                      value={formData.current_stock === '' ? '' : formData.current_stock}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ ...formData, current_stock: value === '' ? '' : parseInt(value, 10) });
+                      }}
                       className="border-gray-300"
                     />
                   </div>
@@ -174,8 +199,11 @@ export default function ServiceItemForm({ item, onSubmit, onCancel }) {
                       id="minimum_stock"
                       type="number"
                       min="0"
-                      value={formData.minimum_stock}
-                      onChange={(e) => setFormData({...formData, minimum_stock: parseInt(e.target.value)})}
+                      value={formData.minimum_stock === '' ? '' : formData.minimum_stock}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        setFormData({ ...formData, minimum_stock: value === '' ? '' : parseInt(value, 10) });
+                      }}
                       className="border-gray-300"
                       placeholder="Alerta quando atingir"
                     />
@@ -195,8 +223,11 @@ export default function ServiceItemForm({ item, onSubmit, onCancel }) {
                   type="number"
                   step="0.01"
                   min="0"
-                  value={formData.labor_cost}
-                  onChange={(e) => setFormData({...formData, labor_cost: parseFloat(e.target.value)})}
+                  value={formData.labor_cost === '' ? '' : formData.labor_cost}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    setFormData({ ...formData, labor_cost: value === '' ? '' : parseFloat(value) });
+                  }}
                   className="border-gray-300"
                 />
               </div>
