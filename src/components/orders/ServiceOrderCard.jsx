@@ -479,7 +479,7 @@ export default function ServiceOrderCard({ order, quote, customer, vehicle, cust
           <div class="content">
             <div class="header">
               <div class="logo-section">
-                <img src="${logoUrl}" alt="${import.meta.env.VITE_COMPANY_NAME || 'Sua Empresa'}" class="logo-img" crossorigin="anonymous" loading="eager">
+                <img src="${logoUrl}" alt="${import.meta.env.VITE_COMPANY_NAME || 'Sua Empresa'}" class="logo-img" loading="eager">
               </div>
               <div class="header-right">
                 <div class="doc-title">ORÇAMENTO</div>
@@ -568,28 +568,28 @@ export default function ServiceOrderCard({ order, quote, customer, vehicle, cust
                 <div class="diagram">
                   <div class="diagram-title">Vista Frontal</div>
                   <div class="car-diagram">
-                    <img src="${vehicleFrontUrl}" alt="Vista Frontal" crossorigin="anonymous" loading="eager">
+                    <img src="${vehicleFrontUrl}" alt="Vista Frontal" loading="eager">
                   </div>
                 </div>
                 
                 <div class="diagram">
                   <div class="diagram-title">Vista Traseira</div>
                   <div class="car-diagram">
-                    <img src="${vehicleRearUrl}" alt="Vista Traseira" crossorigin="anonymous" loading="eager">
+                    <img src="${vehicleRearUrl}" alt="Vista Traseira" loading="eager">
                   </div>
                 </div>
                 
                 <div class="diagram">
                   <div class="diagram-title">Lateral Esquerda</div>
                   <div class="car-diagram">
-                    <img src="${vehicleLeftUrl}" alt="Lateral Esquerda" crossorigin="anonymous" loading="eager">
+                    <img src="${vehicleLeftUrl}" alt="Lateral Esquerda" loading="eager">
                   </div>
                 </div>
                 
                 <div class="diagram">
                   <div class="diagram-title">Lateral Direita</div>
                   <div class="car-diagram">
-                    <img src="${vehicleRightUrl}" alt="Lateral Direita" crossorigin="anonymous" loading="eager">
+                    <img src="${vehicleRightUrl}" alt="Lateral Direita" loading="eager">
                   </div>
                 </div>
               </div>
