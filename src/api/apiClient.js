@@ -1,6 +1,7 @@
 // Generic API client for provider-agnostic REST backends
 
 // Use direct import.meta.env access so Vite replaces at build time
+import { supabase } from '@/lib/supabaseClient';
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
 let RESOURCE_MAP = {};
 try {
@@ -25,9 +26,18 @@ async function request(method, path, { query, body, headers: extraHeaders } = {}
 
   const headers = { 'Content-Type': 'application/json' };
   if (AUTH_HEADER && AUTH_VALUE) headers[AUTH_HEADER] = AUTH_VALUE;
-  if (TOKEN) headers['Authorization'] = `Bearer ${TOKEN}`;
   if (extraHeaders && typeof extraHeaders === 'object') {
     Object.assign(headers, extraHeaders);
+  }
+  // Only add Authorization automatically if caller did not provide one
+  if (!headers['Authorization']) {
+    if (TOKEN) {
+      headers['Authorization'] = `Bearer ${TOKEN}`;
+    } else if (supabase) {
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data?.session?.access_token;
+      if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+    }
   }
 
   const response = await fetch(url.toString(), {
