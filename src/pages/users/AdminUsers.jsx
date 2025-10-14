@@ -13,7 +13,7 @@ export default function AdminUsers() {
 
   const canManage = role === 'admin';
   const headers = useMemo(() => {
-    const bearer = token || import.meta?.env?.VITE_API_TOKEN || '';
+    const bearer = token || import.meta.env.VITE_API_TOKEN || '';
     return bearer ? { Authorization: `Bearer ${bearer}` } : {};
   }, [token]);
 
