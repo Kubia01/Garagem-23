@@ -151,6 +151,43 @@ export default async function handler(req, res) {
     if (token !== API_SHARED_SECRET) return unauthorized(res);
   }
   
+  // Admin bootstrap: allow first logged-in user to become admin once
+  // POST /api/admin/bootstrap
+  if (resource === 'admin' && idMaybe === 'bootstrap') {
+    try {
+      const authHeader = req.headers['authorization'] || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+      if (!token) return unauthorized(res);
+
+      const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+      if (userErr || !userData?.user?.id) return unauthorized(res);
+      const userId = userData.user.id;
+
+      // If there is already an admin, do nothing
+      const { data: anyAdmin, error: adminErr } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('role', 'admin')
+        .limit(1);
+      if (adminErr) return badRequest(res, adminErr.message);
+      if (anyAdmin && anyAdmin.length > 0) {
+        return ok(res, { promoted: false, reason: 'admin_exists' });
+      }
+
+      // Promote current user to admin
+      const { error: upErr } = await supabase
+        .from('profiles')
+        .upsert({ user_id: userId, role: 'admin' }, { onConflict: 'user_id' });
+      if (upErr) return badRequest(res, upErr.message);
+      return ok(res, { promoted: true });
+    } catch (e) {
+      cors(res);
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      return res.end(JSON.stringify({ error: 'internal_error', message: e?.message || String(e) }));
+    }
+  }
+
   // Admin endpoints (e.g., POST/GET/DELETE /api/admin/users)
   if (resource === 'admin' && idMaybe === 'users') {
     // For admin endpoints, prefer Supabase JWT admin verification.
