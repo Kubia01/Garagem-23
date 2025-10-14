@@ -105,11 +105,11 @@ export default function ServiceOrderCard({ order, quote, customer, vehicle, cust
       if (finalPath.startsWith('/')) return `${baseUrl}${finalPath}`;
       return `${baseUrl}/${finalPath}`;
     };
-    const logoUrl = resolveUrl(import.meta.env.VITE_COMPANY_LOGO_URL, '/favicon.svg');
-    const vehicleFrontUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_FRONT_URL, '/vehicle-front.png');
-    const vehicleRearUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_REAR_URL, '/vehicle-rear.png');
-    const vehicleLeftUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_LEFT_URL, '/vehicle-left.png');
-    const vehicleRightUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_RIGHT_URL, '/vehicle-right.png');
+    const logoUrl = resolveUrl(import.meta.env.VITE_COMPANY_LOGO_URL, '/logogrg.png');
+    const vehicleFrontUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_FRONT_URL, '/carro1.png');
+    const vehicleRearUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_REAR_URL, '/carro2.png');
+    const vehicleLeftUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_LEFT_URL, '/carro3.png');
+    const vehicleRightUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_RIGHT_URL, '/carro4.png');
 
     const htmlContent = `
       <!DOCTYPE html>

@@ -106,7 +106,7 @@ export default function VehicleHistory() {
       if (finalPath.startsWith('/')) return `${baseUrl}${finalPath}`;
       return `${baseUrl}/${finalPath}`;
     };
-    const logoUrl = resolveUrl(import.meta.env.VITE_COMPANY_LOGO_URL, '/favicon.svg');
+    const logoUrl = resolveUrl(import.meta.env.VITE_COMPANY_LOGO_URL, '/logogrg.png');
     const htmlContent = `
       <!DOCTYPE html>
       <html>
