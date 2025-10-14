@@ -3,9 +3,11 @@ import { useAuth } from '@/hooks/useAuth.jsx';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
   const { isReady, signIn } = useAuth();
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,7 +19,7 @@ export default function Login() {
     setLoading(true);
     try {
       await signIn({ email, password });
-      // react-router will redirect based on guard
+      navigate('/', { replace: true });
     } catch (e) {
       setError(e?.message || 'Falha no login');
     } finally {

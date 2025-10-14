@@ -87,6 +87,7 @@ export function AuthProvider({ children }) {
     user: session?.user,
     profile,
     role: profile?.role ?? 'operator',
+    token: session?.access_token,
     signIn,
     signOut,
   }), [isReady, session, profile]);
