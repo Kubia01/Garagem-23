@@ -224,3 +224,43 @@ create table if not exists public.vehicle_mileage_history (
 );
 create index if not exists idx_mileage_history_vehicle_id on public.vehicle_mileage_history(vehicle_id);
 create index if not exists idx_mileage_history_created_date on public.vehicle_mileage_history(created_date desc);
+
+-- Auth: auto-create profile on new user
+-- This function will create a profile row when a new auth user is created.
+do $$ begin
+  create or replace function public.handle_new_auth_user()
+  returns trigger
+  language plpgsql
+  security definer
+  set search_path = public
+  as $$
+  begin
+    -- Insert a profile using optional metadata defaults
+    insert into public.profiles (user_id, full_name, role)
+    values (
+      new.id,
+      coalesce(new.raw_user_meta_data->>'full_name', null),
+      coalesce((new.raw_user_meta_data->>'role')::public.user_role, 'operator')
+    )
+    on conflict (user_id) do nothing;
+    return new;
+  end;
+  $$;
+exception
+  when others then null;
+end $$;
+
+-- Recreate trigger idempotently to avoid duplicate-object errors
+do $$ begin
+  drop trigger if exists on_auth_user_created on auth.users;
+exception
+  when undefined_object then null;
+end $$;
+
+do $$ begin
+  create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function public.handle_new_auth_user();
+exception
+  when duplicate_object then null;
+end $$;
