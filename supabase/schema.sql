@@ -233,7 +233,7 @@ do $$ begin
   language plpgsql
   security definer
   set search_path = public
-  as $$
+  as $fn$
   begin
     -- Insert a profile using optional metadata defaults
     insert into public.profiles (user_id, full_name, role)
@@ -245,7 +245,7 @@ do $$ begin
     on conflict (user_id) do nothing;
     return new;
   end;
-  $$;
+  $fn$;
 exception
   when others then null;
 end $$;
