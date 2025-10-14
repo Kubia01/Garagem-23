@@ -272,11 +272,19 @@ export default function QuoteDetail() {
     };
     
     const baseUrl = window.location.origin;
-    const logoUrl = import.meta.env.VITE_COMPANY_LOGO_URL || `${baseUrl}/favicon.svg`;
-    const vehicleFrontUrl = import.meta.env.VITE_VEHICLE_DIAGRAM_FRONT_URL || `${baseUrl}/vehicle-front.png`;
-    const vehicleRearUrl = import.meta.env.VITE_VEHICLE_DIAGRAM_REAR_URL || `${baseUrl}/vehicle-rear.png`;
-    const vehicleLeftUrl = import.meta.env.VITE_VEHICLE_DIAGRAM_LEFT_URL || `${baseUrl}/vehicle-left.png`;
-    const vehicleRightUrl = import.meta.env.VITE_VEHICLE_DIAGRAM_RIGHT_URL || `${baseUrl}/vehicle-right.png`;
+    const resolveUrl = (value, fallbackPath) => {
+      const trimmed = (value || '').toString().trim();
+      const finalPath = trimmed.length > 0 ? trimmed : fallbackPath;
+      if (/^https?:\/\//i.test(finalPath)) return finalPath;
+      if (finalPath.startsWith('/')) return `${baseUrl}${finalPath}`;
+      return `${baseUrl}/${finalPath}`;
+    };
+
+    const logoUrl = resolveUrl(import.meta.env.VITE_COMPANY_LOGO_URL, '/favicon.svg');
+    const vehicleFrontUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_FRONT_URL, '/vehicle-front.png');
+    const vehicleRearUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_REAR_URL, '/vehicle-rear.png');
+    const vehicleLeftUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_LEFT_URL, '/vehicle-left.png');
+    const vehicleRightUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_RIGHT_URL, '/vehicle-right.png');
 
     const htmlContent = `
       <!DOCTYPE html>
