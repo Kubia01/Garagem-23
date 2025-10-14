@@ -116,7 +116,8 @@ export default function VehicleHistory() {
         <title>Orçamento ${quote.quote_number}</title>
         <style>
           body { font-family: 'Helvetica Neue', 'Helvetica', Arial, sans-serif; font-size: 10px; margin: 0; padding: 20px; color: #333; }
-          .container { width: 100%; max-width: 794px; margin: 0 auto; padding: 20px; border: 1px solid #eee; box-shadow: 0 0 10px rgba(0,0,0,0.05); background: #fff; }
+          @page { size: A4; margin: 2mm; }
+          .container { width: 100%; max-width: 794px; margin: 0 auto; padding: 20px; border: 1px solid #eee; box-shadow: 0 0 10px rgba(0,0,0,0.05); background: #fff; overflow: hidden; }
           h1 { font-size: 20px; color: #0056b3; margin-bottom: 5px; }
           h2 { font-size: 14px; margin-top: 20px; margin-bottom: 10px; border-bottom: 1px solid #eee; padding-bottom: 5px; color: #0056b3; }
           p { margin: 0 0 5px 0; line-height: 1.4; }
@@ -139,7 +140,8 @@ export default function VehicleHistory() {
           .notes { background-color: #f9f9f9; padding: 10px; border-left: 3px solid #0056b3; margin-top: 15px; font-size: 9px; }
           .warranty { font-size: 9px; color: #666; margin-top: 10px; }
           @media print {
-            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background: white; }
+            .print-button { display: none !important; }
           }
         </style>
       </head>
@@ -264,8 +266,38 @@ export default function VehicleHistory() {
               });
             });
           }
+          function getPxPerMm(){
+            var div = document.createElement('div');
+            div.style.width = '100mm';
+            div.style.height = '0';
+            div.style.position = 'absolute';
+            div.style.left = '-9999px';
+            document.body.appendChild(div);
+            var px = div.getBoundingClientRect().width;
+            document.body.removeChild(div);
+            return px / 100;
+          }
+          function fitToSinglePage(){
+            var container = document.querySelector('.container');
+            if (!container) return;
+            var pxPerMm = getPxPerMm();
+            var maxHeightPx = 297 * pxPerMm;
+            var contentHeightPx = container.scrollHeight;
+            if (contentHeightPx > maxHeightPx) {
+              var scale = maxHeightPx / contentHeightPx;
+              container.style.transform = 'scale(' + scale + ')';
+              container.style.transformOrigin = 'top left';
+              document.body.style.height = maxHeightPx + 'px';
+              document.body.style.overflow = 'hidden';
+            }
+          }
           window.addEventListener('load', function(){
-            waitForImages(10000).then(function(){ setTimeout(function(){ window.print(); }, 150); });
+            waitForImages(10000).then(function(){
+              requestAnimationFrame(function(){
+                fitToSinglePage();
+                setTimeout(function(){ window.print(); }, 200);
+              });
+            });
           });
         })();
       </script>

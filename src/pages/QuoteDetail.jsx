@@ -321,6 +321,7 @@ export default function QuoteDetail() {
             display: flex;
             flex-direction: column;
             min-height: 297mm;
+            overflow: hidden;
           }
           
           .content {
@@ -653,6 +654,7 @@ export default function QuoteDetail() {
           @media print {
             body { background: white; }
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+            .print-button { display: none !important; }
           }
         </style>
         <link rel="preload" as="image" href="${logoUrl}">
@@ -817,8 +819,44 @@ export default function QuoteDetail() {
                 });
               });
             }
+
+            function getPxPerMm() {
+              var div = document.createElement('div');
+              div.style.width = '100mm';
+              div.style.height = '0';
+              div.style.position = 'absolute';
+              div.style.left = '-9999px';
+              document.body.appendChild(div);
+              var px = div.getBoundingClientRect().width;
+              document.body.removeChild(div);
+              return px / 100;
+            }
+
+            function fitToSinglePage() {
+              var page = document.querySelector('.page');
+              if (!page) return;
+              var pxPerMm = getPxPerMm();
+              var maxHeightPx = 297 * pxPerMm; // A4 height in pixels
+              // Use scrollHeight to account for overflowing content
+              var contentHeightPx = page.scrollHeight;
+              if (contentHeightPx > maxHeightPx) {
+                var scale = maxHeightPx / contentHeightPx;
+                page.style.transform = 'scale(' + scale + ')';
+                page.style.transformOrigin = 'top left';
+                // Constrain body to a single page to avoid an extra blank page
+                document.body.style.height = maxHeightPx + 'px';
+                document.body.style.overflow = 'hidden';
+              }
+            }
+
             window.addEventListener('load', function(){
-              waitForImages(12000).then(function(){ setTimeout(function(){ window.print(); }, 150); });
+              waitForImages(12000).then(function(){
+                // Give layout a moment to settle, then fit and print
+                requestAnimationFrame(function() {
+                  fitToSinglePage();
+                  setTimeout(function(){ window.print(); }, 200);
+                });
+              });
             });
           })();
         </script>
