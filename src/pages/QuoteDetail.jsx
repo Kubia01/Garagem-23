@@ -281,10 +281,12 @@ export default function QuoteDetail() {
     };
 
     const logoUrl = resolveUrl(import.meta.env.VITE_COMPANY_LOGO_URL, '/logogrg.png');
-    const vehicleFrontUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_FRONT_URL, '/carro1.png');
-    const vehicleRearUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_REAR_URL, '/carro2.png');
-    const vehicleLeftUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_LEFT_URL, '/carro3.png');
-    const vehicleRightUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_RIGHT_URL, '/carro4.png');
+    // Map fallback images per requested positions
+    // carro4 -> Vista Frontal, carro3 -> Vista Traseira, carro2 -> Lateral Esquerda, carro1 -> Lateral Direita
+    const vehicleFrontUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_FRONT_URL, '/carro4.png');
+    const vehicleRearUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_REAR_URL, '/carro3.png');
+    const vehicleLeftUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_LEFT_URL, '/carro2.png');
+    const vehicleRightUrl = resolveUrl(import.meta.env.VITE_VEHICLE_DIAGRAM_RIGHT_URL, '/carro1.png');
 
     const htmlContent = `
       <!DOCTYPE html>
