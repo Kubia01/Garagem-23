@@ -26,7 +26,18 @@ import VehicleSearch from "./VehicleSearch";
 
 import PendingPayments from "./PendingPayments";
 
-import { BrowserRouter as Router, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'react-router-dom';
+import Login from './Login.jsx';
+import { useAuth } from '@/hooks/useAuth.jsx';
+import { hasAccess } from '@/utils';
+
+function Protected({ children, pageName }) {
+    const { isReady, session, role } = useAuth();
+    if (!isReady) return null; // optionally a loader
+    if (!session) return <Navigate to="/login" replace />;
+    if (pageName && !hasAccess(role, pageName)) return <Navigate to="/" replace />;
+    return children;
+}
 
 const PAGES = {
     
@@ -77,40 +88,34 @@ function PagesContent() {
     const currentPage = _getCurrentPage(location.pathname);
     
     return (
-        <Layout currentPageName={currentPage}>
-            <Routes>            
-                
-                    <Route path="/" element={<Dashboard />} />
-                
-                
-                <Route path="/Dashboard" element={<Dashboard />} />
-                
-                <Route path="/Customers" element={<Customers />} />
-                
-                <Route path="/Vehicles" element={<Vehicles />} />
-                
-                <Route path="/ServiceCatalog" element={<ServiceCatalog />} />
-                
-                <Route path="/Quotes" element={<Quotes />} />
-                
-                <Route path="/NewQuote" element={<NewQuote />} />
-                
-                <Route path="/QuoteDetail" element={<QuoteDetail />} />
-                
-                <Route path="/Reminders" element={<Reminders />} />
-                
-                <Route path="/ServiceOrders" element={<ServiceOrders />} />
-                
-                <Route path="/Suppliers" element={<Suppliers />} />
-                
-                <Route path="/VehicleHistory" element={<VehicleHistory />} />
-                
-                <Route path="/VehicleSearch" element={<VehicleSearch />} />
-                
-                <Route path="/PendingPayments" element={<PendingPayments />} />
-                
-            </Routes>
-        </Layout>
+        <Routes>
+            <Route path="/login" element={<Login />} />
+            <Route
+              path="/*"
+              element={
+                <Protected>
+                  <Layout currentPageName={currentPage}>
+                    <Routes>
+                      <Route path="/" element={<Protected pageName="Dashboard"><Dashboard /></Protected>} />
+                      <Route path="/Dashboard" element={<Protected pageName="Dashboard"><Dashboard /></Protected>} />
+                      <Route path="/Customers" element={<Protected pageName="Customers"><Customers /></Protected>} />
+                      <Route path="/Vehicles" element={<Protected pageName="Vehicles"><Vehicles /></Protected>} />
+                      <Route path="/ServiceCatalog" element={<Protected pageName="ServiceCatalog"><ServiceCatalog /></Protected>} />
+                      <Route path="/Quotes" element={<Protected pageName="Quotes"><Quotes /></Protected>} />
+                      <Route path="/NewQuote" element={<Protected pageName="NewQuote"><NewQuote /></Protected>} />
+                      <Route path="/QuoteDetail" element={<Protected pageName="QuoteDetail"><QuoteDetail /></Protected>} />
+                      <Route path="/Reminders" element={<Protected pageName="Reminders"><Reminders /></Protected>} />
+                      <Route path="/ServiceOrders" element={<Protected pageName="ServiceOrders"><ServiceOrders /></Protected>} />
+                      <Route path="/Suppliers" element={<Protected pageName="Suppliers"><Suppliers /></Protected>} />
+                      <Route path="/VehicleHistory" element={<Protected pageName="VehicleHistory"><VehicleHistory /></Protected>} />
+                      <Route path="/VehicleSearch" element={<Protected pageName="VehicleSearch"><VehicleSearch /></Protected>} />
+                      <Route path="/PendingPayments" element={<Protected pageName="PendingPayments"><PendingPayments /></Protected>} />
+                    </Routes>
+                  </Layout>
+                </Protected>
+              }
+            />
+        </Routes>
     );
 }
 

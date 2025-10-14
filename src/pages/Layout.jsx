@@ -3,6 +3,7 @@
 import React from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { useAuth } from '@/hooks/useAuth.jsx';
 import {
   LayoutDashboard,
   Users,
@@ -72,6 +73,7 @@ const navigationItems = [
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
+  const { user, profile, role, signOut } = useAuth();
 
   return (
     <SidebarProvider>
@@ -134,14 +136,30 @@ export default function Layout({ children, currentPageName }) {
         </Sidebar>
 
         <main className="flex-1 flex flex-col">
-          <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 px-6 py-4 md:hidden sticky top-0 z-10">
-            <div className="flex items-center gap-4">
-              <SidebarTrigger className="hover:bg-gray-100 p-2 rounded-lg transition-colors duration-200" />
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
-                  <Wrench className="w-4 h-4 text-white" />
+          <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 px-6 py-4 sticky top-0 z-10">
+            <div className="flex items-center justify-between gap-4">
+              <div className="flex items-center gap-4">
+                <SidebarTrigger className="hover:bg-gray-100 p-2 rounded-lg transition-colors duration-200 md:hidden" />
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center">
+                    <Wrench className="w-4 h-4 text-white" />
+                  </div>
+                  <h1 className="text-lg font-bold text-gray-900">AutoMaster</h1>
                 </div>
-                <h1 className="text-lg font-bold text-gray-900">AutoMaster</h1>
+              </div>
+              <div className="flex items-center gap-3 text-sm text-gray-700">
+                {profile?.full_name && (
+                  <span className="hidden sm:inline">{profile.full_name}</span>
+                )}
+                {role && (
+                  <span className="px-2 py-1 rounded bg-gray-100 text-gray-700">{role}</span>
+                )}
+                <button
+                  onClick={signOut}
+                  className="px-3 py-1.5 rounded-md bg-red-50 text-red-700 hover:bg-red-100 border border-red-200"
+                >
+                  Sair
+                </button>
               </div>
             </div>
           </header>

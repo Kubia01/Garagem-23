@@ -4,6 +4,44 @@
 -- Enable UUID generation
 create extension if not exists "pgcrypto";
 
+-- Auth Profiles and Roles
+do $$ begin
+  create type public.user_role as enum ('admin', 'manager', 'operator');
+exception
+  when duplicate_object then null;
+end $$;
+
+create table if not exists public.profiles (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null unique,
+  full_name text,
+  role public.user_role not null default 'operator',
+  created_at timestamptz not null default now()
+);
+
+-- Ensure Row Level Security policies for profiles
+alter table public.profiles enable row level security;
+
+do $$ begin
+  create policy "Self can read own profile" on public.profiles
+    for select
+    using ( auth.uid() = user_id );
+exception
+  when duplicate_object then null;
+end $$;
+
+do $$ begin
+  create policy "Self can update own profile" on public.profiles
+    for update
+    using ( auth.uid() = user_id )
+    with check ( auth.uid() = user_id );
+exception
+  when duplicate_object then null;
+end $$;
+
+-- Optional: admins can read all profiles if your service uses service role key
+-- (Handled server-side via service role; no RLS policy needed here)
+
 -- Customers
 create table if not exists public.customers (
   id uuid primary key default gen_random_uuid(),
