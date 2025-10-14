@@ -99,7 +99,14 @@ export default function VehicleHistory() {
     // Reutilizar a mesma função de geração de PDF
     const pdfWindow = window.open('', '_blank');
     const baseUrl = window.location.origin;
-    const logoUrl = import.meta.env.VITE_COMPANY_LOGO_URL || `${baseUrl}/favicon.svg`;
+    const resolveUrl = (value, fallbackPath) => {
+      const trimmed = (value || '').toString().trim();
+      const finalPath = trimmed.length > 0 ? trimmed : fallbackPath;
+      if (/^https?:\/\//i.test(finalPath)) return finalPath;
+      if (finalPath.startsWith('/')) return `${baseUrl}${finalPath}`;
+      return `${baseUrl}/${finalPath}`;
+    };
+    const logoUrl = resolveUrl(import.meta.env.VITE_COMPANY_LOGO_URL, '/favicon.svg');
     const htmlContent = `
       <!DOCTYPE html>
       <html>
