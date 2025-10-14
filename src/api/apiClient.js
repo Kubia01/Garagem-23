@@ -1,16 +1,17 @@
 // Generic API client for provider-agnostic REST backends
 
-const API_BASE_URL = (import.meta?.env?.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+// Use direct import.meta.env access so Vite replaces at build time
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
 let RESOURCE_MAP = {};
 try {
-  RESOURCE_MAP = JSON.parse(import.meta?.env?.VITE_API_RESOURCE_MAP || '{}');
+  RESOURCE_MAP = JSON.parse(import.meta.env.VITE_API_RESOURCE_MAP || '{}');
 } catch (_) {
   RESOURCE_MAP = {};
 }
 
-const AUTH_HEADER = import.meta?.env?.VITE_API_AUTH_HEADER;
-const AUTH_VALUE = import.meta?.env?.VITE_API_AUTH_VALUE;
-const TOKEN = import.meta?.env?.VITE_API_TOKEN;
+const AUTH_HEADER = import.meta.env.VITE_API_AUTH_HEADER;
+const AUTH_VALUE = import.meta.env.VITE_API_AUTH_VALUE;
+const TOKEN = import.meta.env.VITE_API_TOKEN;
 
 async function request(method, path, { query, body, headers: extraHeaders } = {}) {
   const base = API_BASE_URL || '';
