@@ -131,13 +131,6 @@ export default async function handler(req, res) {
     return res.end();
   }
 
-  // Optional shared-secret auth for non-admin data endpoints (read/write)
-  if (API_SHARED_SECRET) {
-    const auth = req.headers['authorization'] || '';
-    const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-    if (token !== API_SHARED_SECRET) return unauthorized(res);
-  }
-
   const urlObj = new URL(req.url, 'http://localhost');
   let pathname = urlObj.pathname || '';
   // Normalize to remove possible /api/index prefix
@@ -149,11 +142,28 @@ export default async function handler(req, res) {
   const restPath = pathname.slice(apiPrefix.length); // e.g., "customers/123" or "admin/users"
   const [resource, idMaybe] = restPath.split('/');
   const table = resourceToTable[resource];
+
+  // Optional shared-secret auth for non-admin data endpoints (read/write)
+  // If API_SHARED_SECRET is configured, enforce it ONLY for non-admin routes.
+  if (API_SHARED_SECRET && resource !== 'admin') {
+    const auth = req.headers['authorization'] || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+    if (token !== API_SHARED_SECRET) return unauthorized(res);
+  }
   
   // Admin endpoints (e.g., POST/GET/DELETE /api/admin/users)
   if (resource === 'admin' && idMaybe === 'users') {
-    const authz = await authenticateAdmin(req);
-    if (!authz.ok) return unauthorized(res);
+    // For admin endpoints, prefer Supabase JWT admin verification.
+    // Allow API_SHARED_SECRET as a fallback when provided.
+    const authHeader = req.headers['authorization'] || '';
+    const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    if (API_SHARED_SECRET && bearerToken === API_SHARED_SECRET) {
+      // Shared-secret bypass for administrative automation when explicitly configured
+      // Proceed without checking Supabase claims
+    } else {
+      const authz = await authenticateAdmin(req);
+      if (!authz.ok) return unauthorized(res);
+    }
 
     if (req.method === 'POST') {
       try {
