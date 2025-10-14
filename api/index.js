@@ -126,9 +126,74 @@ export default async function handler(req, res) {
   if (!pathname.startsWith(apiPrefix)) {
     return notFound(res);
   }
-  const restPath = pathname.slice(apiPrefix.length); // e.g., "customers/123"
+  const restPath = pathname.slice(apiPrefix.length); // e.g., "customers/123" or "admin/users"
   const [resource, idMaybe] = restPath.split('/');
   const table = resourceToTable[resource];
+  
+  // Admin endpoints (e.g., POST /api/admin/users)
+  if (resource === 'admin' && idMaybe === 'users') {
+    // Enforce shared-secret strictly for admin endpoints
+    if (!API_SHARED_SECRET) return badRequest(res, 'missing_server_secret');
+    const auth = req.headers['authorization'] || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+    if (token !== API_SHARED_SECRET) return unauthorized(res);
+
+    if (req.method === 'POST') {
+      try {
+        const raw = await parseBody(req);
+        const body = normalizePayload(raw);
+        const email = String(body?.email || '').trim().toLowerCase();
+        const password = String(body?.password || '');
+        const fullName = body?.full_name ? String(body.full_name) : undefined;
+        const role = String(body?.role || '').toLowerCase();
+
+        if (!email) return badRequest(res, 'missing_email');
+        if (!password || password.length < 8) return badRequest(res, 'invalid_password_min_8_chars');
+        const allowedRoles = ['admin', 'manager', 'operator'];
+        const roleValid = !role || allowedRoles.includes(role);
+        if (!roleValid) return badRequest(res, 'invalid_role');
+
+        const { data: created, error: createErr } = await supabase.auth.admin.createUser({
+          email,
+          password,
+          email_confirm: true,
+          user_metadata: {
+            full_name: fullName,
+            role: role || 'operator',
+          },
+        });
+        if (createErr) return badRequest(res, createErr.message);
+
+        const userId = created?.user?.id;
+        if (!userId) return badRequest(res, 'user_creation_failed');
+
+        // Ensure profile exists and reflects provided metadata
+        const profilePayload = {
+          user_id: userId,
+          full_name: fullName || null,
+          role: (roleValid && role) ? role : 'operator',
+        };
+        const { error: upsertErr } = await supabase
+          .from('profiles')
+          .upsert(profilePayload, { onConflict: 'user_id' });
+        if (upsertErr) return badRequest(res, upsertErr.message);
+
+        return ok(res, {
+          id: userId,
+          email,
+          role: profilePayload.role,
+        });
+      } catch (e) {
+        cors(res);
+        res.statusCode = 500;
+        res.setHeader('Content-Type', 'application/json');
+        return res.end(JSON.stringify({ error: 'internal_error', message: e?.message || String(e) }));
+      }
+    }
+
+    return notFound(res);
+  }
+
   if (!table) return notFound(res);
 
   try {
