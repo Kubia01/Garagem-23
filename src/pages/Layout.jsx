@@ -28,7 +28,8 @@ import {
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 
-const navigationItems = [
+function buildNavigationItems(role) {
+  const base = [
   {
     title: "Dashboard",
     url: createPageUrl("Dashboard"),
@@ -69,11 +70,17 @@ const navigationItems = [
     url: createPageUrl("Reminders"),
     icon: Bell,
   },
-];
+  ];
+  if (role === 'admin') {
+    base.push({ title: 'Usuários', url: '/admin/users', icon: Users });
+  }
+  return base;
+}
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const { user, profile, role, signOut } = useAuth();
+  const navigationItems = buildNavigationItems(role);
 
   return (
     <SidebarProvider>

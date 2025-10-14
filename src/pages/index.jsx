@@ -30,6 +30,7 @@ import { BrowserRouter as Router, Route, Routes, useLocation, Navigate } from 'r
 import Login from './Login.jsx';
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { hasAccess } from '@/utils';
+import AdminUsers from './users/AdminUsers.jsx';
 
 function Protected({ children, pageName }) {
     const { isReady, session, role } = useAuth();
@@ -110,6 +111,7 @@ function PagesContent() {
                       <Route path="/VehicleHistory" element={<Protected pageName="VehicleHistory"><VehicleHistory /></Protected>} />
                       <Route path="/VehicleSearch" element={<Protected pageName="VehicleSearch"><VehicleSearch /></Protected>} />
                       <Route path="/PendingPayments" element={<Protected pageName="PendingPayments"><PendingPayments /></Protected>} />
+                      <Route path="/admin/users" element={<Protected pageName="Dashboard"><AdminUsers /></Protected>} />
                     </Routes>
                   </Layout>
                 </Protected>

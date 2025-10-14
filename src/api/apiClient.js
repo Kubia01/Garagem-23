@@ -12,7 +12,7 @@ const AUTH_HEADER = import.meta?.env?.VITE_API_AUTH_HEADER;
 const AUTH_VALUE = import.meta?.env?.VITE_API_AUTH_VALUE;
 const TOKEN = import.meta?.env?.VITE_API_TOKEN;
 
-async function request(method, path, { query, body } = {}) {
+async function request(method, path, { query, body, headers: extraHeaders } = {}) {
   const base = API_BASE_URL || '';
   const url = new URL(`${base}${path}` || path, window.location.origin);
   if (query && typeof query === 'object') {
@@ -25,6 +25,9 @@ async function request(method, path, { query, body } = {}) {
   const headers = { 'Content-Type': 'application/json' };
   if (AUTH_HEADER && AUTH_VALUE) headers[AUTH_HEADER] = AUTH_VALUE;
   if (TOKEN) headers['Authorization'] = `Bearer ${TOKEN}`;
+  if (extraHeaders && typeof extraHeaders === 'object') {
+    Object.assign(headers, extraHeaders);
+  }
 
   const response = await fetch(url.toString(), {
     method,
@@ -55,28 +58,28 @@ export function createEntityApi(resourceName) {
   const resourcePath = `/${mappedName}`;
 
   return {
-    async list(sort) {
+    async list(sort, options) {
       const query = buildQuery(undefined, sort);
-      return request('GET', resourcePath, { query });
+      return request('GET', resourcePath, { query, ...(options || {}) });
     },
 
-    async filter(criteria, sort) {
+    async filter(criteria, sort, options) {
       const query = buildQuery(criteria, sort);
-      return request('GET', resourcePath, { query });
+      return request('GET', resourcePath, { query, ...(options || {}) });
     },
 
-    async create(payload) {
-      return request('POST', resourcePath, { body: payload });
+    async create(payload, options) {
+      return request('POST', resourcePath, { body: payload, ...(options || {}) });
     },
 
-    async update(id, payload) {
+    async update(id, payload, options) {
       if (!id) throw new Error(`update requires a valid id for ${resourceName}`);
-      return request('PUT', `${resourcePath}/${id}`, { body: payload });
+      return request('PUT', `${resourcePath}/${id}`, { body: payload, ...(options || {}) });
     },
 
-    async delete(id) {
+    async delete(id, options) {
       if (!id) throw new Error(`delete requires a valid id for ${resourceName}`);
-      return request('DELETE', `${resourcePath}/${id}`);
+      return request('DELETE', `${resourcePath}/${id}`, { ...(options || {}) });
     },
   };
 }

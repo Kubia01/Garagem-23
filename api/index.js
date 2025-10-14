@@ -59,6 +59,26 @@ function ok(res, data) {
   res.end(JSON.stringify(data));
 }
 
+async function authenticateAdmin(req) {
+  // Allow API_SHARED_SECRET as a backdoor admin when set
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+  if (API_SHARED_SECRET && token === API_SHARED_SECRET) return { ok: true };
+  if (!token) return { ok: false, reason: 'missing_token' };
+  // Verify Supabase JWT and ensure user role is admin
+  const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+  if (userErr || !userData?.user?.id) return { ok: false, reason: 'invalid_token' };
+  const userId = userData.user.id;
+  const { data: profile, error: profErr } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('user_id', userId)
+    .maybeSingle();
+  if (profErr) return { ok: false, reason: 'profile_error' };
+  if (!profile || profile.role !== 'admin') return { ok: false, reason: 'not_admin' };
+  return { ok: true, userId };
+}
+
 async function parseBody(req) {
   return new Promise((resolve, reject) => {
     let body = '';
@@ -111,7 +131,7 @@ export default async function handler(req, res) {
     return res.end();
   }
 
-  // Optional shared-secret auth
+  // Optional shared-secret auth for non-admin data endpoints (read/write)
   if (API_SHARED_SECRET) {
     const auth = req.headers['authorization'] || '';
     const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
@@ -130,13 +150,10 @@ export default async function handler(req, res) {
   const [resource, idMaybe] = restPath.split('/');
   const table = resourceToTable[resource];
   
-  // Admin endpoints (e.g., POST /api/admin/users)
+  // Admin endpoints (e.g., POST/GET/DELETE /api/admin/users)
   if (resource === 'admin' && idMaybe === 'users') {
-    // Enforce shared-secret strictly for admin endpoints
-    if (!API_SHARED_SECRET) return badRequest(res, 'missing_server_secret');
-    const auth = req.headers['authorization'] || '';
-    const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-    if (token !== API_SHARED_SECRET) return unauthorized(res);
+    const authz = await authenticateAdmin(req);
+    if (!authz.ok) return unauthorized(res);
 
     if (req.method === 'POST') {
       try {
@@ -183,6 +200,42 @@ export default async function handler(req, res) {
           email,
           role: profilePayload.role,
         });
+      } catch (e) {
+        cors(res);
+        res.statusCode = 500;
+        res.setHeader('Content-Type', 'application/json');
+        return res.end(JSON.stringify({ error: 'internal_error', message: e?.message || String(e) }));
+      }
+    }
+
+    if (req.method === 'GET') {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('user_id, full_name, role');
+        if (error) return badRequest(res, error.message);
+        return ok(res, data || []);
+      } catch (e) {
+        cors(res);
+        res.statusCode = 500;
+        res.setHeader('Content-Type', 'application/json');
+        return res.end(JSON.stringify({ error: 'internal_error', message: e?.message || String(e) }));
+      }
+    }
+
+    if (req.method === 'DELETE') {
+      try {
+        const raw = await parseBody(req);
+        const userId = String(raw?.user_id || '').trim();
+        if (!userId) return badRequest(res, 'missing_user_id');
+
+        const { error: delAuthErr } = await supabase.auth.admin.deleteUser(userId);
+        if (delAuthErr) return badRequest(res, delAuthErr.message);
+
+        const { error: delProfErr } = await supabase.from('profiles').delete().eq('user_id', userId);
+        if (delProfErr) return badRequest(res, delProfErr.message);
+
+        return ok(res, { deleted: true });
       } catch (e) {
         cors(res);
         res.statusCode = 500;
