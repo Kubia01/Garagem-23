@@ -73,6 +73,23 @@ export function AuthProvider({ children }) {
     if (!supabase) throw new Error('Auth not configured');
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    // After successful login, try admin bootstrap once
+    try {
+      const token = data?.session?.access_token;
+      const userId = data?.session?.user?.id;
+      if (token) {
+        const res = await fetch('/api/admin/bootstrap', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}` },
+        }).catch(() => undefined);
+        if (res && res.ok) {
+          const result = await res.json().catch(() => undefined);
+          if (result?.promoted && userId) {
+            await loadProfile(userId);
+          }
+        }
+      }
+    } catch (_) {}
     return data;
   };
 

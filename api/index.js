@@ -131,13 +131,6 @@ export default async function handler(req, res) {
     return res.end();
   }
 
-  // Optional shared-secret auth for non-admin data endpoints (read/write)
-  if (API_SHARED_SECRET) {
-    const auth = req.headers['authorization'] || '';
-    const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-    if (token !== API_SHARED_SECRET) return unauthorized(res);
-  }
-
   const urlObj = new URL(req.url, 'http://localhost');
   let pathname = urlObj.pathname || '';
   // Normalize to remove possible /api/index prefix
@@ -149,11 +142,65 @@ export default async function handler(req, res) {
   const restPath = pathname.slice(apiPrefix.length); // e.g., "customers/123" or "admin/users"
   const [resource, idMaybe] = restPath.split('/');
   const table = resourceToTable[resource];
+
+  // Optional shared-secret auth for non-admin data endpoints (read/write)
+  // If API_SHARED_SECRET is configured, enforce it ONLY for non-admin routes.
+  if (API_SHARED_SECRET && resource !== 'admin') {
+    const auth = req.headers['authorization'] || '';
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+    if (token !== API_SHARED_SECRET) return unauthorized(res);
+  }
   
+  // Admin bootstrap: allow first logged-in user to become admin once
+  // POST /api/admin/bootstrap
+  if (resource === 'admin' && idMaybe === 'bootstrap') {
+    try {
+      const authHeader = req.headers['authorization'] || '';
+      const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+      if (!token) return unauthorized(res);
+
+      const { data: userData, error: userErr } = await supabase.auth.getUser(token);
+      if (userErr || !userData?.user?.id) return unauthorized(res);
+      const userId = userData.user.id;
+
+      // If there is already an admin, do nothing
+      const { data: anyAdmin, error: adminErr } = await supabase
+        .from('profiles')
+        .select('user_id')
+        .eq('role', 'admin')
+        .limit(1);
+      if (adminErr) return badRequest(res, adminErr.message);
+      if (anyAdmin && anyAdmin.length > 0) {
+        return ok(res, { promoted: false, reason: 'admin_exists' });
+      }
+
+      // Promote current user to admin
+      const { error: upErr } = await supabase
+        .from('profiles')
+        .upsert({ user_id: userId, role: 'admin' }, { onConflict: 'user_id' });
+      if (upErr) return badRequest(res, upErr.message);
+      return ok(res, { promoted: true });
+    } catch (e) {
+      cors(res);
+      res.statusCode = 500;
+      res.setHeader('Content-Type', 'application/json');
+      return res.end(JSON.stringify({ error: 'internal_error', message: e?.message || String(e) }));
+    }
+  }
+
   // Admin endpoints (e.g., POST/GET/DELETE /api/admin/users)
   if (resource === 'admin' && idMaybe === 'users') {
-    const authz = await authenticateAdmin(req);
-    if (!authz.ok) return unauthorized(res);
+    // For admin endpoints, prefer Supabase JWT admin verification.
+    // Allow API_SHARED_SECRET as a fallback when provided.
+    const authHeader = req.headers['authorization'] || '';
+    const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+    if (API_SHARED_SECRET && bearerToken === API_SHARED_SECRET) {
+      // Shared-secret bypass for administrative automation when explicitly configured
+      // Proceed without checking Supabase claims
+    } else {
+      const authz = await authenticateAdmin(req);
+      if (!authz.ok) return unauthorized(res);
+    }
 
     if (req.method === 'POST') {
       try {
