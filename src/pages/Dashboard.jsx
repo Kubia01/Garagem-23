@@ -39,19 +39,24 @@ export default function Dashboard() {
 
   const loadData = async () => {
     setLoading(true);
-    const [quotesData, itemsData, customersData, vehiclesData, serviceItemsData] = await Promise.all([
-      Quote.list("-created_date"),
-      QuoteItem.list("-created_date"),
-      Customer.list("-created_date"),
-      Vehicle.list("-created_date"),
-      ServiceItem.list("-created_date")
-    ]);
-    setQuotes(quotesData);
-    setQuoteItems(itemsData);
-    setCustomers(customersData);
-    setVehicles(vehiclesData);
-    setServiceItems(serviceItemsData);
-    setLoading(false);
+    try {
+      const [quotesData, itemsData, customersData, vehiclesData, serviceItemsData] = await Promise.all([
+        Quote.list("-created_date"),
+        QuoteItem.list("-created_date"),
+        Customer.list("-created_date"),
+        Vehicle.list("-created_date"),
+        ServiceItem.list("-created_date")
+      ]);
+      setQuotes(quotesData);
+      setQuoteItems(itemsData);
+      setCustomers(customersData);
+      setVehicles(vehiclesData);
+      setServiceItems(serviceItemsData);
+    } catch (e) {
+      console.error("Failed to load dashboard:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Função para formatar valores em Real Brasileiro

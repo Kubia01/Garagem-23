@@ -28,21 +28,24 @@ export default function PendingPayments() {
 
   const loadData = async () => {
     setLoading(true);
-    const [quotesData, customersData, vehiclesData] = await Promise.all([
-      Quote.list("-created_date"),
-      Customer.list("-created_date"),
-      Vehicle.list("-created_date")
-    ]);
-    
-    // Filtrar apenas cotações concluídas com pagamento pendente
-    const pendingQuotes = quotesData.filter(q => 
-      q.status === "concluida" && (q.amount_pending || 0) > 0
-    );
-    
-    setQuotes(pendingQuotes);
-    setCustomers(customersData);
-    setVehicles(vehiclesData);
-    setLoading(false);
+    try {
+      const [quotesData, customersData, vehiclesData] = await Promise.all([
+        Quote.list("-created_date"),
+        Customer.list("-created_date"),
+        Vehicle.list("-created_date")
+      ]);
+      // Filtrar apenas cotações concluídas com pagamento pendente
+      const pendingQuotes = quotesData.filter(q => 
+        q.status === "concluida" && (q.amount_pending || 0) > 0
+      );
+      setQuotes(pendingQuotes);
+      setCustomers(customersData);
+      setVehicles(vehiclesData);
+    } catch (e) {
+      console.error("Failed to load pending payments:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getCustomerName = (customerId) => {

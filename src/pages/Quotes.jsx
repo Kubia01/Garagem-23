@@ -23,15 +23,20 @@ export default function Quotes() {
 
   const loadData = async () => {
     setLoading(true);
-    const [quotesData, customersData, vehiclesData] = await Promise.all([
-      Quote.list("-created_date"),
-      Customer.list("-created_date"),
-      Vehicle.list("-created_date")
-    ]);
-    setQuotes(quotesData);
-    setCustomers(customersData);
-    setVehicles(vehiclesData);
-    setLoading(false);
+    try {
+      const [quotesData, customersData, vehiclesData] = await Promise.all([
+        Quote.list("-created_date"),
+        Customer.list("-created_date"),
+        Vehicle.list("-created_date")
+      ]);
+      setQuotes(quotesData);
+      setCustomers(customersData);
+      setVehicles(vehiclesData);
+    } catch (e) {
+      console.error("Failed to load quotes:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getCustomerName = (customerId) => {

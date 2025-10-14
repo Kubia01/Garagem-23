@@ -59,24 +59,29 @@ export default function QuoteDetail() {
     if (quoteId) {
       const loadData = async () => {
         setLoading(true);
-        const quoteData = await Quote.filter({ id: quoteId });
-        if (quoteData.length > 0) {
-          const q = quoteData[0];
-          setQuote(q);
-          setEditedQuote(q);
+        try {
+          const quoteData = await Quote.filter({ id: quoteId });
+          if (quoteData.length > 0) {
+            const q = quoteData[0];
+            setQuote(q);
+            setEditedQuote(q);
 
-          const [itemsData, customerData, vehicleData] = await Promise.all([
-            QuoteItem.filter({ quote_id: q.id }),
-            Customer.filter({ id: q.customer_id }),
-            Vehicle.filter({ id: q.vehicle_id })
-          ]);
+            const [itemsData, customerData, vehicleData] = await Promise.all([
+              QuoteItem.filter({ quote_id: q.id }),
+              Customer.filter({ id: q.customer_id }),
+              Vehicle.filter({ id: q.vehicle_id })
+            ]);
 
-          setItems(itemsData);
-          setEditedItems(itemsData);
-          setCustomer(customerData[0]);
-          setVehicle(vehicleData[0]);
+            setItems(itemsData);
+            setEditedItems(itemsData);
+            setCustomer(customerData[0]);
+            setVehicle(vehicleData[0]);
+          }
+        } catch (e) {
+          console.error("Failed to load quote detail:", e);
+        } finally {
+          setLoading(false);
         }
-        setLoading(false);
       };
 
       loadData();

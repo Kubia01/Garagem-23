@@ -26,13 +26,18 @@ export default function ServiceCatalog() {
 
   const loadData = async () => {
     setLoading(true);
-    const [itemsData, suppliersData] = await Promise.all([
-      ServiceItem.list("-created_date"),
-      Supplier.list("-created_date")
-    ]);
-    setItems(itemsData);
-    setSuppliers(suppliersData);
-    setLoading(false);
+    try {
+      const [itemsData, suppliersData] = await Promise.all([
+        ServiceItem.list("-created_date"),
+        Supplier.list("-created_date")
+      ]);
+      setItems(itemsData);
+      setSuppliers(suppliersData);
+    } catch (e) {
+      console.error("Failed to load service catalog:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (itemData) => {
