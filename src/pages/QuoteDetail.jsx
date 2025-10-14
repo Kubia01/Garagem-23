@@ -645,6 +645,11 @@ export default function QuoteDetail() {
             * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
           }
         </style>
+        <link rel="preload" as="image" href="${logoUrl}">
+        <link rel="preload" as="image" href="${vehicleFrontUrl}">
+        <link rel="preload" as="image" href="${vehicleRearUrl}">
+        <link rel="preload" as="image" href="${vehicleLeftUrl}">
+        <link rel="preload" as="image" href="${vehicleRightUrl}">
       </head>
       <body>
         <button class="print-button" onclick="window.print()">🖨️ Imprimir Orçamento</button>
@@ -653,7 +658,7 @@ export default function QuoteDetail() {
           <div class="content">
             <div class="header">
               <div class="logo-section">
-                <img src="${logoUrl}" alt="${import.meta.env.VITE_COMPANY_NAME || 'Sua Empresa'}" class="logo-img" loading="eager">
+                <img src="${logoUrl}" alt="${import.meta.env.VITE_COMPANY_NAME || 'Sua Empresa'}" class="logo-img" loading="eager" fetchpriority="high" decoding="sync">
               </div>
               <div class="header-right">
                 <div class="doc-title">ORÇAMENTO</div>
@@ -741,28 +746,28 @@ export default function QuoteDetail() {
               <div class="diagram">
                 <div class="diagram-title">Vista Frontal</div>
                 <div class="car-diagram">
-                  <img src="${vehicleFrontUrl}" alt="Vista Frontal" loading="eager">
+                  <img src="${vehicleFrontUrl}" alt="Vista Frontal" loading="eager" fetchpriority="high" decoding="sync">
                 </div>
               </div>
               
               <div class="diagram">
                 <div class="diagram-title">Vista Traseira</div>
                 <div class="car-diagram">
-                  <img src="${vehicleRearUrl}" alt="Vista Traseira" loading="eager">
+                  <img src="${vehicleRearUrl}" alt="Vista Traseira" loading="eager" fetchpriority="high" decoding="sync">
                 </div>
               </div>
               
               <div class="diagram">
                 <div class="diagram-title">Lateral Esquerda</div>
                 <div class="car-diagram">
-                  <img src="${vehicleLeftUrl}" alt="Lateral Esquerda" loading="eager">
+                  <img src="${vehicleLeftUrl}" alt="Lateral Esquerda" loading="eager" fetchpriority="high" decoding="sync">
                 </div>
               </div>
               
               <div class="diagram">
                 <div class="diagram-title">Lateral Direita</div>
                 <div class="car-diagram">
-                  <img src="${vehicleRightUrl}" alt="Lateral Direita" loading="eager">
+                  <img src="${vehicleRightUrl}" alt="Lateral Direita" loading="eager" fetchpriority="high" decoding="sync">
                 </div>
               </div>
             </div>
@@ -786,6 +791,27 @@ export default function QuoteDetail() {
             </div>
           </div>
         </div>
+        <script>
+          (function() {
+            function waitForImages(timeoutMs) {
+              return new Promise(function(resolve) {
+                var imgs = Array.prototype.slice.call(document.images || []);
+                if (imgs.length === 0) return resolve();
+                var remaining = imgs.length;
+                var timer = setTimeout(function(){ resolve(); }, timeoutMs || 12000);
+                function done(){ if (--remaining === 0) { clearTimeout(timer); resolve(); } }
+                imgs.forEach(function(img) {
+                  if (img.complete && img.naturalWidth > 0) { done(); return; }
+                  img.addEventListener('load', done, { once: true });
+                  img.addEventListener('error', done, { once: true });
+                });
+              });
+            }
+            window.addEventListener('load', function(){
+              waitForImages(12000).then(function(){ setTimeout(function(){ window.print(); }, 150); });
+            });
+          })();
+        </script>
       </body>
       </html>
     `;
