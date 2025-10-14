@@ -143,12 +143,20 @@ export default async function handler(req, res) {
   const [resource, idMaybe] = restPath.split('/');
   const table = resourceToTable[resource];
 
-  // Optional shared-secret auth for non-admin data endpoints (read/write)
-  // If API_SHARED_SECRET is configured, enforce it ONLY for non-admin routes.
-  if (API_SHARED_SECRET && resource !== 'admin') {
-    const auth = req.headers['authorization'] || '';
-    const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
-    if (token !== API_SHARED_SECRET) return unauthorized(res);
+  // Auth for non-admin routes: allow API_SHARED_SECRET OR a valid Supabase JWT
+  if (resource !== 'admin') {
+    const authHeader = req.headers['authorization'] || '';
+    const bearerToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : '';
+
+    let authorized = false;
+    if (API_SHARED_SECRET && bearerToken === API_SHARED_SECRET) {
+      authorized = true;
+    } else if (bearerToken) {
+      const { data: userData } = await supabase.auth.getUser(bearerToken);
+      if (userData?.user?.id) authorized = true;
+    }
+
+    if (!authorized) return unauthorized(res);
   }
   
   // Admin bootstrap: allow first logged-in user to become admin once
