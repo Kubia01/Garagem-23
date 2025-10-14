@@ -25,16 +25,21 @@ export function AuthProvider({ children }) {
     let mounted = true;
 
     const init = async () => {
-      const {
-        data: { session: currentSession },
-      } = await supabase.auth.getSession();
-      if (!mounted) return;
-      setSession(currentSession || undefined);
+      try {
+        const {
+          data: { session: currentSession },
+        } = await supabase.auth.getSession();
+        if (!mounted) return;
+        setSession(currentSession || undefined);
 
-      if (currentSession?.user?.id) {
-        await loadProfile(currentSession.user.id);
+        if (currentSession?.user?.id) {
+          await loadProfile(currentSession.user.id);
+        }
+      } catch (e) {
+        console.warn('[Auth] init failed:', e?.message || e);
+      } finally {
+        if (mounted) setIsReady(true);
       }
-      setIsReady(true);
     };
 
     const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
@@ -46,10 +51,16 @@ export function AuthProvider({ children }) {
       }
     });
 
+    // Safety: ensure readiness even if init hangs for any reason
+    const readyTimeout = setTimeout(() => {
+      if (mounted) setIsReady(true);
+    }, 2000);
+
     init();
 
     return () => {
       mounted = false;
+      clearTimeout(readyTimeout);
       listener?.subscription?.unsubscribe?.();
     };
   }, []);

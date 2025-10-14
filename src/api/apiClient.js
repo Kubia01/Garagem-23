@@ -47,8 +47,21 @@ async function request(method, path, { query, body, headers: extraHeaders } = {}
   });
 
   if (!response.ok) {
+    const status = response.status;
     const text = await response.text().catch(() => '');
-    throw new Error(`API ${method} ${url.pathname} failed: ${response.status} ${response.statusText} ${text}`);
+    // On unauthorized, clear session and force login
+    if (status === 401) {
+      try {
+        if (supabase) {
+          await supabase.auth.signOut();
+        }
+      } catch (_) {}
+      // Force redirect to login to recover from stale tokens
+      if (typeof window !== 'undefined') {
+        try { window.location.assign('/login'); } catch (_) {}
+      }
+    }
+    throw new Error(`API ${method} ${url.pathname} failed: ${status} ${response.statusText} ${text}`);
   }
 
   const contentType = response.headers.get('content-type') || '';

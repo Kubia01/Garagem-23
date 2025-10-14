@@ -46,7 +46,7 @@ export default function Login() {
             {error && (
               <div className="text-red-600 text-sm">{error}</div>
             )}
-            <Button type="submit" className="w-full" disabled={!isReady || loading}>
+            <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>

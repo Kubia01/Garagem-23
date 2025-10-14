@@ -22,13 +22,18 @@ export default function Vehicles() {
 
   const loadData = async () => {
     setLoading(true);
-    const [vehiclesData, customersData] = await Promise.all([
-      Vehicle.list("-created_date"),
-      Customer.list("-created_date")
-    ]);
-    setVehicles(vehiclesData);
-    setCustomers(customersData);
-    setLoading(false);
+    try {
+      const [vehiclesData, customersData] = await Promise.all([
+        Vehicle.list("-created_date"),
+        Customer.list("-created_date")
+      ]);
+      setVehicles(vehiclesData);
+      setCustomers(customersData);
+    } catch (e) {
+      console.error("Failed to load vehicles:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (vehicleData) => {

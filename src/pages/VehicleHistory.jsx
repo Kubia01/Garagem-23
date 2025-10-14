@@ -30,34 +30,37 @@ export default function VehicleHistory() {
 
   const loadData = async () => {
     setLoading(true);
-    
-    const vehicleData = await Vehicle.filter({ id: vehicleId });
-    if (vehicleData.length > 0) {
-      const v = vehicleData[0];
-      setVehicle(v);
+    try {
+      const vehicleData = await Vehicle.filter({ id: vehicleId });
+      if (vehicleData.length > 0) {
+        const v = vehicleData[0];
+        setVehicle(v);
 
-      const [customerData, quotesData, ordersData, historyData] = await Promise.all([
-        Customer.filter({ id: v.customer_id }),
-        Quote.filter({ vehicle_id: vehicleId }),
-        ServiceOrder.filter({ vehicle_id: vehicleId }),
-        VehicleMileageHistory.filter({ vehicle_id: vehicleId })
-      ]);
+        const [customerData, quotesData, ordersData, historyData] = await Promise.all([
+          Customer.filter({ id: v.customer_id }),
+          Quote.filter({ vehicle_id: vehicleId }),
+          ServiceOrder.filter({ vehicle_id: vehicleId }),
+          VehicleMileageHistory.filter({ vehicle_id: vehicleId })
+        ]);
 
-      setCustomer(customerData[0]);
-      
-      const sortedQuotes = quotesData.sort((a, b) => 
-        new Date(b.service_date) - new Date(a.service_date)
-      );
-      setQuotes(sortedQuotes);
-      setServiceOrders(ordersData);
-      
-      const sortedHistory = historyData.sort((a, b) => 
-        new Date(b.record_date) - new Date(a.record_date)
-      );
-      setMileageHistory(sortedHistory);
+        setCustomer(customerData[0]);
+        
+        const sortedQuotes = quotesData.sort((a, b) => 
+          new Date(b.service_date) - new Date(a.service_date)
+        );
+        setQuotes(sortedQuotes);
+        setServiceOrders(ordersData);
+        
+        const sortedHistory = historyData.sort((a, b) => 
+          new Date(b.record_date) - new Date(a.record_date)
+        );
+        setMileageHistory(sortedHistory);
+      }
+    } catch (e) {
+      console.error("Failed to load vehicle history:", e);
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   const getServiceOrder = (quoteId) => {

@@ -44,23 +44,27 @@ export default function NewQuote() {
 
   const loadData = async () => {
     setLoading(true);
-    const [customersData, vehiclesData, serviceItemsData, quotesData] = await Promise.all([
-      Customer.list("-created_date"),
-      Vehicle.list("-created_date"),
-      ServiceItem.filter({ is_active: true }, "-created_date"),
-      Quote.list("-created_date")
-    ]);
-    setCustomers(customersData);
-    setVehicles(vehiclesData);
-    setServiceItems(serviceItemsData);
-    setAllQuotes(quotesData);
-    
-    // Generate next quote number
-    const nextNumber = quotesData.length + 1;
-    const quoteNumber = `COT-${String(nextNumber).padStart(6, '0')}`;
-    setQuoteData(prev => ({ ...prev, quote_number: quoteNumber }));
-    
-    setLoading(false);
+    try {
+      const [customersData, vehiclesData, serviceItemsData, quotesData] = await Promise.all([
+        Customer.list("-created_date"),
+        Vehicle.list("-created_date"),
+        ServiceItem.filter({ is_active: true }, "-created_date"),
+        Quote.list("-created_date")
+      ]);
+      setCustomers(customersData);
+      setVehicles(vehiclesData);
+      setServiceItems(serviceItemsData);
+      setAllQuotes(quotesData);
+      
+      // Generate next quote number
+      const nextNumber = quotesData.length + 1;
+      const quoteNumber = `COT-${String(nextNumber).padStart(6, '0')}`;
+      setQuoteData(prev => ({ ...prev, quote_number: quoteNumber }));
+    } catch (e) {
+      console.error("Failed to load new quote data:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const customerVehicles = vehicles.filter(v => v.customer_id === quoteData.customer_id);

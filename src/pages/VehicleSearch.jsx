@@ -24,40 +24,42 @@ export default function VehicleSearch() {
 
     setLoading(true);
     setSearched(true);
+    try {
+      // Buscar veículo pela placa
+      const plateFormatted = licensePlate.trim().toUpperCase();
+      const vehiclesData = await Vehicle.filter({ license_plate: plateFormatted });
 
-    // Buscar veículo pela placa
-    const plateFormatted = licensePlate.trim().toUpperCase();
-    const vehiclesData = await Vehicle.filter({ license_plate: plateFormatted });
+      if (vehiclesData.length === 0) {
+        setVehicle(null);
+        setCustomer(null);
+        setQuotes([]);
+        setMileageHistory([]); // Clear mileage history on no vehicle found
+        return;
+      }
 
-    if (vehiclesData.length === 0) {
-      setVehicle(null);
-      setCustomer(null);
-      setQuotes([]);
-      setMileageHistory([]); // Clear mileage history on no vehicle found
+      const vehicleData = vehiclesData[0];
+      setVehicle(vehicleData);
+
+      // Buscar cliente, cotações e histórico de quilometragem em paralelo
+      const [customersData, quotesData, historyData] = await Promise.all([
+        Customer.filter({ id: vehicleData.customer_id }),
+        Quote.filter({ vehicle_id: vehicleData.id }),
+        VehicleMileageHistory.filter({ vehicle_id: vehicleData.id }, "-record_date") // Fetch and sort by record_date descending
+      ]);
+
+      setCustomer(customersData[0]);
+      
+      // Ordenar cotações por data de serviço (mais recente primeiro)
+      const sortedQuotes = quotesData.sort((a, b) => 
+        new Date(b.service_date) - new Date(a.service_date)
+      );
+      setQuotes(sortedQuotes);
+      setMileageHistory(historyData); // Set mileage history
+    } catch (e) {
+      console.error("Failed to search vehicle:", e);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const vehicleData = vehiclesData[0];
-    setVehicle(vehicleData);
-
-    // Buscar cliente, cotações e histórico de quilometragem em paralelo
-    const [customersData, quotesData, historyData] = await Promise.all([
-      Customer.filter({ id: vehicleData.customer_id }),
-      Quote.filter({ vehicle_id: vehicleData.id }),
-      VehicleMileageHistory.filter({ vehicle_id: vehicleData.id }, "-record_date") // Fetch and sort by record_date descending
-    ]);
-
-    setCustomer(customersData[0]);
-    
-    // Ordenar cotações por data de serviço (mais recente primeiro)
-    const sortedQuotes = quotesData.sort((a, b) => 
-      new Date(b.service_date) - new Date(a.service_date)
-    );
-    setQuotes(sortedQuotes);
-    setMileageHistory(historyData); // Set mileage history
-
-    setLoading(false);
   };
 
   const getStatusBadge = (status) => {

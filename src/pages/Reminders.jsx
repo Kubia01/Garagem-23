@@ -22,15 +22,20 @@ export default function Reminders() {
 
   const loadData = async () => {
     setLoading(true);
-    const [remindersData, customersData, vehiclesData] = await Promise.all([
-      MaintenanceReminder.list("-created_date"),
-      Customer.list("-created_date"),
-      Vehicle.list("-created_date")
-    ]);
-    setReminders(remindersData);
-    setCustomers(customersData);
-    setVehicles(vehiclesData);
-    setLoading(false);
+    try {
+      const [remindersData, customersData, vehiclesData] = await Promise.all([
+        MaintenanceReminder.list("-created_date"),
+        Customer.list("-created_date"),
+        Vehicle.list("-created_date")
+      ]);
+      setReminders(remindersData);
+      setCustomers(customersData);
+      setVehicles(vehiclesData);
+    } catch (e) {
+      console.error("Failed to load reminders:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getCustomer = (customerId) => {

@@ -37,7 +37,8 @@ export default function AdminUsers() {
   const onCreate = async (e) => {
     e.preventDefault();
     setError('');
-    const form = new FormData(e.currentTarget);
+    const formEl = e.currentTarget;
+    const form = new FormData(formEl);
     const email = String(form.get('email') || '').trim();
     const password = String(form.get('password') || '');
     const full_name = String(form.get('full_name') || '').trim() || undefined;
@@ -52,7 +53,7 @@ export default function AdminUsers() {
         body: { email, password, full_name, role },
         headers,
       });
-      e.currentTarget.reset();
+      formEl?.reset?.();
       await loadUsers();
     } catch (e) {
       setError(e?.message || 'Falha ao criar usuário');

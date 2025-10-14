@@ -36,17 +36,22 @@ export default function ServiceOrders() {
 
   const loadData = async () => {
     setLoading(true);
-    const [ordersData, quotesData, customersData, vehiclesData] = await Promise.all([
-      ServiceOrder.list("-created_date"),
-      Quote.list("-created_date"),
-      Customer.list("-created_date"),
-      Vehicle.list("-created_date")
-    ]);
-    setOrders(ordersData);
-    setQuotes(quotesData);
-    setCustomers(customersData);
-    setVehicles(vehiclesData);
-    setLoading(false);
+    try {
+      const [ordersData, quotesData, customersData, vehiclesData] = await Promise.all([
+        ServiceOrder.list("-created_date"),
+        Quote.list("-created_date"),
+        Customer.list("-created_date"),
+        Vehicle.list("-created_date")
+      ]);
+      setOrders(ordersData);
+      setQuotes(quotesData);
+      setCustomers(customersData);
+      setVehicles(vehiclesData);
+    } catch (e) {
+      console.error("Failed to load service orders:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getQuote = (quoteId) => quotes.find(q => q.id === quoteId);

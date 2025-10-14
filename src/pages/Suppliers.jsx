@@ -21,9 +21,14 @@ export default function Suppliers() {
 
   const loadData = async () => {
     setLoading(true);
-    const data = await Supplier.list("-created_date");
-    setSuppliers(data);
-    setLoading(false);
+    try {
+      const data = await Supplier.list("-created_date");
+      setSuppliers(data);
+    } catch (e) {
+      console.error("Failed to load suppliers:", e);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleSubmit = async (supplierData) => {
