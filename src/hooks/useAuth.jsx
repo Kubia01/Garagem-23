@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { sessionManager } from '@/lib/sessionManager';
 
 const AuthContext = createContext({
   isReady: false,
@@ -11,73 +12,11 @@ const AuthContext = createContext({
   signOut: async () => { throw new Error('Auth not initialized'); },
 });
 
-// Sistema de recuperação de sessão mais robusto
-let sessionRecoveryAttempts = 0;
-const MAX_RECOVERY_ATTEMPTS = 3;
-let recoveryInProgress = false;
-
 export function AuthProvider({ children }) {
   const [isReady, setIsReady] = useState(false);
   const [session, setSession] = useState();
   const [profile, setProfile] = useState();
   const [connectionStatus, setConnectionStatus] = useState('online');
-
-  // Função para recuperação robusta de sessão
-  const recoverSession = useCallback(async () => {
-    if (recoveryInProgress || sessionRecoveryAttempts >= MAX_RECOVERY_ATTEMPTS) {
-      return null;
-    }
-
-    recoveryInProgress = true;
-    sessionRecoveryAttempts++;
-
-    try {
-      console.log(`[Auth] Tentativa de recuperação ${sessionRecoveryAttempts}/${MAX_RECOVERY_ATTEMPTS}`);
-      
-      // Primeiro, tenta obter a sessão atual
-      const { data: { session: currentSession }, error } = await supabase.auth.getSession();
-      
-      if (error) {
-        console.warn('[Auth] Erro ao obter sessão:', error);
-        return null;
-      }
-
-      if (currentSession) {
-        console.log('[Auth] Sessão recuperada com sucesso');
-        sessionRecoveryAttempts = 0; // Reset counter on success
-        return currentSession;
-      }
-
-      // Se não há sessão, tenta refresh se há refresh token no storage
-      const storedSession = localStorage.getItem('oficina-auth-v2');
-      if (storedSession) {
-        try {
-          const parsed = JSON.parse(storedSession);
-          if (parsed.refresh_token) {
-            console.log('[Auth] Tentando refresh com token armazenado');
-            const { data, error: refreshError } = await supabase.auth.refreshSession({
-              refresh_token: parsed.refresh_token
-            });
-            
-            if (!refreshError && data.session) {
-              console.log('[Auth] Refresh bem-sucedido');
-              sessionRecoveryAttempts = 0;
-              return data.session;
-            }
-          }
-        } catch (parseError) {
-          console.warn('[Auth] Erro ao parsear sessão armazenada:', parseError);
-        }
-      }
-
-      return null;
-    } catch (error) {
-      console.warn('[Auth] Erro na recuperação de sessão:', error);
-      return null;
-    } finally {
-      recoveryInProgress = false;
-    }
-  }, []);
 
   useEffect(() => {
     if (!supabase) {
@@ -86,224 +25,203 @@ export function AuthProvider({ children }) {
     }
 
     let mounted = true;
-    let authListener = null;
 
     const init = async () => {
       try {
-        // Primeira tentativa: obter sessão atual
-        let currentSession = null;
+        console.log('[Auth] Inicializando sistema de autenticação...');
         
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          currentSession = session;
-        } catch (getSessionError) {
-          console.warn('[Auth] Erro ao obter sessão inicial:', getSessionError);
-          // Tenta recuperar
-          currentSession = await recoverSession();
-        }
-
+        // Inicializa o gerenciador de sessão
+        await sessionManager.initialize();
+        
+        // Obtém estado inicial
+        const authState = sessionManager.getAuthState();
+        
         if (!mounted) return;
         
-        setSession(currentSession || undefined);
-
-        if (currentSession?.user?.id) {
-          await loadProfile(currentSession.user.id);
+        if (authState.session) {
+          setSession(authState.session);
+          if (authState.session.user?.id) {
+            await loadProfile(authState.session.user.id);
+          }
         }
-      } catch (e) {
-        console.warn('[Auth] init failed:', e?.message || e);
-        // Em caso de erro, tenta recuperação
+        
+        console.log('[Auth] Inicialização concluída, estado:', authState.state);
+        
+      } catch (error) {
+        console.error('[Auth] Erro na inicialização:', error);
+      } finally {
         if (mounted) {
-          const recoveredSession = await recoverSession();
-          if (recoveredSession) {
-            setSession(recoveredSession);
-            if (recoveredSession.user?.id) {
-              await loadProfile(recoveredSession.user.id);
-            }
-          }
+          setIsReady(true);
         }
-      } finally {
-        if (mounted) setIsReady(true);
       }
     };
 
-    // Set up auth state listener with better error handling
-    const setupAuthListener = () => {
-      try {
-        const { data: listener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-          if (!mounted) return;
+    // Configura listener para mudanças de estado de autenticação
+    const unsubscribeAuthState = sessionManager.onAuthStateChange((state, newSession) => {
+      if (!mounted) return;
+      
+      console.log('[Auth] Estado de autenticação mudou:', state);
+      
+      switch (state) {
+        case 'authenticated':
+          setSession(newSession);
+          if (newSession?.user?.id) {
+            loadProfile(newSession.user.id);
+          }
+          setIsReady(true);
+          break;
           
-          console.log('[Auth] State change:', event, !!newSession);
+        case 'token_refreshed':
+          console.log('[Auth] Token renovado automaticamente');
+          setSession(newSession);
+          // Não recarrega profile no refresh, apenas atualiza sessão
+          setIsReady(true);
+          break;
           
-          // Reset recovery attempts on successful events
-          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            sessionRecoveryAttempts = 0;
+        case 'user_updated':
+          setSession(newSession);
+          if (newSession?.user?.id) {
+            loadProfile(newSession.user.id);
           }
+          break;
           
-          // Handle different auth events
-          if (event === 'SIGNED_OUT') {
-            setSession(undefined);
-            setProfile(undefined);
-            sessionRecoveryAttempts = 0;
-          } else if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
-            setSession(newSession || undefined);
-            if (newSession?.user?.id) {
-              await loadProfile(newSession.user.id);
-            }
-          } else {
-            setSession(newSession || undefined);
-            if (newSession?.user?.id) {
-              await loadProfile(newSession.user.id);
-            } else {
-              setProfile(undefined);
-            }
-          }
-        });
-        authListener = listener;
-      } catch (e) {
-        console.warn('[Auth] Failed to setup listener:', e);
+        case 'unauthenticated':
+        case 'authentication_failed':
+          setSession(undefined);
+          setProfile(undefined);
+          setIsReady(true);
+          break;
+          
+        default:
+          // Para outros estados, mantém estado atual
+          break;
       }
-    };
+    });
 
-    // Safety: ensure readiness even if init hangs for any reason
-    const readyTimeout = setTimeout(() => {
-      if (mounted) setIsReady(true);
-    }, 5000);
-
-    init();
-    setupAuthListener();
-
-    return () => {
-      mounted = false;
-      clearTimeout(readyTimeout);
-      if (authListener?.subscription?.unsubscribe) {
-        try {
-          authListener.subscription.unsubscribe();
-        } catch (e) {
-          console.warn('[Auth] Failed to unsubscribe listener:', e);
-        }
-      }
-    };
-  }, [recoverSession]);
-
-  // Sistema de manutenção de sessão otimizado - UMA única verificação centralizada
-  useEffect(() => {
-    if (!session || !supabase) return;
-
-    let keepAliveInterval;
-    let isRefreshing = false;
-
-    const maintainSession = async () => {
-      // Evita múltiplas execuções simultâneas
-      if (isRefreshing) return;
-      isRefreshing = true;
-
-      try {
-        // Verifica conectividade primeiro
-        const online = navigator.onLine;
-        setConnectionStatus(online ? 'online' : 'offline');
-        
-        if (!online) {
-          console.log('[Auth] Offline - pulando manutenção de sessão');
-          return;
-        }
-
-        console.log('[Auth] Verificando e mantendo sessão...');
-        
-        // Tenta refresh da sessão
-        const { data, error } = await supabase.auth.refreshSession();
-        
-        if (error) {
-          console.warn('[Auth] Erro no refresh, tentando recuperar:', error.message);
-          const recovered = await recoverSession();
-          if (!recovered) {
-            console.warn('[Auth] Não foi possível recuperar a sessão');
-          } else {
-            console.log('[Auth] Sessão recuperada com sucesso');
-            sessionRecoveryAttempts = 0;
-          }
-        } else {
-          console.log('[Auth] Sessão mantida com sucesso');
-          sessionRecoveryAttempts = 0;
-        }
-      } catch (e) {
-        console.warn('[Auth] Erro na manutenção de sessão:', e.message);
-        await recoverSession();
-      } finally {
-        isRefreshing = false;
-      }
-    };
-
-    // ÚNICO intervalo - a cada 15 minutos (muito mais eficiente)
-    keepAliveInterval = setInterval(maintainSession, 15 * 60 * 1000);
-
-    // Listeners para eventos de rede (mais eficientes)
+    // Listeners de conectividade
     const handleOnline = () => {
-      console.log('[Auth] Rede restaurada');
+      console.log('[Auth] Conectividade restaurada');
       setConnectionStatus('online');
-      // Executa manutenção após reconectar (com delay para estabilizar)
-      setTimeout(maintainSession, 2000);
+      // Força verificação de sessão quando volta online
+      sessionManager.checkSession();
     };
 
     const handleOffline = () => {
-      console.log('[Auth] Rede perdida');
+      console.log('[Auth] Conectividade perdida');
       setConnectionStatus('offline');
     };
 
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Executa manutenção inicial (com delay para evitar conflitos)
-    setTimeout(maintainSession, 5000);
+    // Safety timeout para garantir que isReady seja definido
+    const readyTimeout = setTimeout(() => {
+      if (mounted) {
+        console.log('[Auth] Timeout de segurança atingido, definindo como pronto');
+        setIsReady(true);
+      }
+    }, 5000);
+
+    init();
 
     return () => {
-      if (keepAliveInterval) clearInterval(keepAliveInterval);
+      mounted = false;
+      clearTimeout(readyTimeout);
+      unsubscribeAuthState();
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
-  }, [session, recoverSession]);
+  }, []);
 
   const loadProfile = async (userId) => {
     try {
+      console.log('[Auth] Carregando perfil do usuário:', userId);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('id, user_id, full_name, role')
         .eq('user_id', userId)
         .maybeSingle();
-      if (error) throw error;
+        
+      if (error) {
+        console.warn('[Auth] Erro ao carregar perfil:', error.message);
+        setProfile(undefined);
+        return;
+      }
+      
+      console.log('[Auth] Perfil carregado:', data?.role || 'sem role');
       setProfile(data || undefined);
-    } catch (e) {
-      console.warn('[Auth] Failed to load profile:', e?.message || e);
+      
+    } catch (error) {
+      console.warn('[Auth] Erro inesperado ao carregar perfil:', error.message);
       setProfile(undefined);
     }
   };
 
   const signIn = async ({ email, password }) => {
     if (!supabase) throw new Error('Auth not configured');
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    // After successful login, try admin bootstrap once
+    
+    console.log('[Auth] Iniciando login...');
+    
+    const { data, error } = await supabase.auth.signInWithPassword({ 
+      email, 
+      password 
+    });
+    
+    if (error) {
+      console.error('[Auth] Erro no login:', error.message);
+      throw error;
+    }
+    
+    console.log('[Auth] Login bem-sucedido');
+    
+    // Após login bem-sucedido, tenta bootstrap de admin
     try {
       const token = data?.session?.access_token;
       const userId = data?.session?.user?.id;
+      
       if (token) {
+        console.log('[Auth] Tentando bootstrap de admin...');
+        
         const res = await fetch('/api/admin/bootstrap', {
           method: 'POST',
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
         }).catch(() => undefined);
+        
         if (res && res.ok) {
           const result = await res.json().catch(() => undefined);
+          console.log('[Auth] Bootstrap result:', result);
+          
           if (result?.promoted && userId) {
+            // Recarrega perfil se foi promovido a admin
             await loadProfile(userId);
           }
         }
       }
-    } catch (_) {}
+    } catch (bootstrapError) {
+      console.warn('[Auth] Erro no bootstrap (não crítico):', bootstrapError.message);
+    }
+    
     return data;
   };
 
   const signOut = async () => {
     if (!supabase) return;
-    await supabase.auth.signOut();
+    
+    console.log('[Auth] Fazendo logout...');
+    
+    try {
+      await supabase.auth.signOut();
+      console.log('[Auth] Logout concluído');
+    } catch (error) {
+      console.error('[Auth] Erro no logout:', error.message);
+      // Mesmo com erro, limpa estado local
+      setSession(undefined);
+      setProfile(undefined);
+    }
   };
 
   const value = useMemo(() => ({
