@@ -40,7 +40,7 @@ async function request(method, path, { query, body, headers: extraHeaders } = {}
     }
   }
 
-  const response = await fetch(url.toString(), {
+  let response = await fetch(url.toString(), {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
@@ -49,15 +49,45 @@ async function request(method, path, { query, body, headers: extraHeaders } = {}
   if (!response.ok) {
     const status = response.status;
     const text = await response.text().catch(() => '');
-    // On unauthorized, clear session and force login
-    if (status === 401) {
+    // For 401, attempt one silent token refresh + retry before forcing logout
+    if (status === 401 && supabase) {
       try {
-        if (supabase) {
-          await supabase.auth.signOut();
+        // Force Supabase to refresh the session if possible
+        const { data: sessionData } = await supabase.auth.getSession();
+        const currentAccessToken = sessionData?.session?.access_token;
+
+        // If no access token, try to recover via refresh flow
+        if (!currentAccessToken) {
+          await supabase.auth.refreshSession();
         }
-      } catch (_) {}
-      // Force redirect to login to recover from stale tokens
-      if (typeof window !== 'undefined') {
+
+        // Rebuild headers with possibly updated access token
+        const retryHeaders = { ...headers };
+        if (!retryHeaders['Authorization']) {
+          const { data: after } = await supabase.auth.getSession();
+          const retryAccess = after?.session?.access_token;
+          if (retryAccess) retryHeaders['Authorization'] = `Bearer ${retryAccess}`;
+        }
+
+        response = await fetch(url.toString(), {
+          method,
+          headers: retryHeaders,
+          body: body ? JSON.stringify(body) : undefined,
+        });
+
+        if (response.ok) {
+          const contentType = response.headers.get('content-type') || '';
+          if (contentType.includes('application/json')) {
+            return response.json();
+          }
+          return undefined;
+        }
+      } catch (_) {
+        // fall through to sign-out below
+      }
+
+      try { await supabase.auth.signOut(); } catch (_) {}
+      if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
         try { window.location.assign('/login'); } catch (_) {}
       }
     }

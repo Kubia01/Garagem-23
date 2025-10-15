@@ -111,7 +111,7 @@ function PagesContent() {
                       <Route path="/VehicleHistory" element={<Protected pageName="VehicleHistory"><VehicleHistory /></Protected>} />
                       <Route path="/VehicleSearch" element={<Protected pageName="VehicleSearch"><VehicleSearch /></Protected>} />
                       <Route path="/PendingPayments" element={<Protected pageName="PendingPayments"><PendingPayments /></Protected>} />
-                      <Route path="/admin/users" element={<Protected pageName="Dashboard"><AdminUsers /></Protected>} />
+                      <Route path="/admin/users" element={<Protected pageName="AdminUsers"><AdminUsers /></Protected>} />
                     </Routes>
                   </Layout>
                 </Protected>
