@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
-import { AUTH_CONFIG } from '@/config/auth';
 
 const AuthContext = createContext({
   isReady: false,
@@ -98,47 +97,28 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  // Continuous session keepalive - no activity tracking restrictions
+  // Sessão ilimitada - mantém a sessão sempre ativa
   useEffect(() => {
     if (!session || !supabase) return;
 
-    let heartbeatInterval;
+    let keepAliveInterval;
 
-    const updateActivity = () => {
-      setLastActivity(Date.now());
-    };
-
-    const checkSessionHealth = async () => {
+    const keepSessionAlive = async () => {
       try {
-        const { data, error } = await supabase.auth.getSession();
-        if (error || !data?.session) {
-          console.warn('[Auth] Session health check failed, refreshing...');
-          await supabase.auth.refreshSession();
-        }
+        // Refresh da sessão a cada 5 minutos para manter sempre ativa
+        await supabase.auth.refreshSession();
       } catch (e) {
-        console.warn('[Auth] Session health check error:', e);
+        console.warn('[Auth] Failed to refresh session:', e);
       }
     };
 
-    // Track user activity
-    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
-    events.forEach(event => {
-      document.addEventListener(event, updateActivity, { passive: true });
-    });
-
-    // ALWAYS check session health regardless of activity
-    // This ensures the session never expires and the UI never freezes
-    heartbeatInterval = setInterval(() => {
-      checkSessionHealth();
-    }, AUTH_CONFIG.HEALTH_CHECK_INTERVAL);
+    // Refresh automático a cada 5 minutos
+    keepAliveInterval = setInterval(keepSessionAlive, 5 * 60 * 1000);
 
     return () => {
-      events.forEach(event => {
-        document.removeEventListener(event, updateActivity);
-      });
-      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      if (keepAliveInterval) clearInterval(keepAliveInterval);
     };
-  }, [session, lastActivity]);
+  }, [session]);
 
   const loadProfile = async (userId) => {
     try {
