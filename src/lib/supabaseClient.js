@@ -16,8 +16,8 @@ export const supabase = VITE_SUPABASE_URL && VITE_SUPABASE_ANON_KEY
         autoRefreshToken: true,
         detectSessionInUrl: true,
         storageKey: 'oficina-auth-v2',
-        // Configurações para sessão 24/7 sem interrupções
-        refreshThreshold: 3600, // 1 hora antes de expirar (mais seguro)
+        // Configurações otimizadas para sessão estável
+        refreshThreshold: 1800, // 30 minutos antes de expirar (mais eficiente)
         storage: {
           getItem: (key) => {
             try {

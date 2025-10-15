@@ -83,43 +83,24 @@ export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const { user, profile, role, connectionStatus, signOut } = useAuth();
   const navigationItems = buildNavigationItems(role);
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [lastPing, setLastPing] = useState(Date.now());
 
-  // Monitor network connectivity
+  // Monitor network connectivity - apenas eventos nativos (mais eficiente)
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
+    const handleOnline = () => setLastPing(Date.now());
+    const handleOffline = () => {};
     
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     
-    // Verificação de conectividade simples a cada 30 segundos
-    const pingInterval = setInterval(async () => {
-      try {
-        const response = await fetch('/api/health', { 
-          method: 'HEAD',
-          cache: 'no-cache',
-          signal: AbortSignal.timeout(5000)
-        });
-        if (response.ok) {
-          setLastPing(Date.now());
-          if (!isOnline) setIsOnline(true);
-        } else {
-          setIsOnline(false);
-        }
-      } catch {
-        const isNetworkError = !navigator.onLine;
-        if (isNetworkError) setIsOnline(false);
-      }
-    }, 30000); // 30 segundos
+    // Verificação inicial
+    setLastPing(Date.now());
     
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
-      clearInterval(pingInterval);
     };
-  }, [isOnline]);
+  }, []);
 
   return (
     <SidebarProvider>
@@ -194,13 +175,13 @@ export default function Layout({ children, currentPageName }) {
                 </div>
               </div>
               <div className="flex items-center gap-3 text-sm text-gray-700">
-                {/* Connectivity indicator */}
+                {/* Connectivity indicator - usando connectionStatus do useAuth */}
                 <div className={`flex items-center gap-1 px-2 py-1 rounded-md ${
-                  isOnline ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                  connectionStatus === 'online' ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
                 }`}>
-                  {isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+                  {connectionStatus === 'online' ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
                   <span className="text-xs hidden sm:inline">
-                    {isOnline ? 'Online' : 'Offline'}
+                    {connectionStatus === 'online' ? 'Online' : 'Offline'}
                   </span>
                 </div>
                 

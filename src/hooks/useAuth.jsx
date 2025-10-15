@@ -185,82 +185,63 @@ export function AuthProvider({ children }) {
     };
   }, [recoverSession]);
 
-  // Sistema de manutenção de sessão 24/7 com múltiplas camadas de proteção
+  // Sistema de manutenção de sessão otimizado - UMA única verificação centralizada
   useEffect(() => {
     if (!session || !supabase) return;
 
     let keepAliveInterval;
-    let healthCheckInterval;
-    let networkCheckInterval;
+    let isRefreshing = false;
 
-    const keepSessionAlive = async () => {
-      try {
-        console.log('[Auth] Mantendo sessão ativa...');
-        const { data, error } = await supabase.auth.refreshSession();
-        
-        if (error) {
-          console.warn('[Auth] Erro no refresh:', error);
-          // Tenta recuperar a sessão
-          const recovered = await recoverSession();
-          if (!recovered) {
-            console.warn('[Auth] Não foi possível recuperar a sessão');
-          }
-        } else {
-          console.log('[Auth] Sessão renovada com sucesso');
-          sessionRecoveryAttempts = 0; // Reset counter on success
-        }
-      } catch (e) {
-        console.warn('[Auth] Erro crítico no keep alive:', e);
-        // Tenta recuperação em caso de erro crítico
-        await recoverSession();
-      }
-    };
+    const maintainSession = async () => {
+      // Evita múltiplas execuções simultâneas
+      if (isRefreshing) return;
+      isRefreshing = true;
 
-    const healthCheck = async () => {
       try {
-        // Verifica se a sessão ainda é válida
-        const { data: { session: currentSession } } = await supabase.auth.getSession();
-        
-        if (!currentSession && session) {
-          console.warn('[Auth] Sessão perdida detectada, tentando recuperar...');
-          await recoverSession();
-        }
-      } catch (e) {
-        console.warn('[Auth] Erro no health check:', e);
-      }
-    };
-
-    const checkNetworkAndRecover = async () => {
-      try {
-        // Verifica conectividade
+        // Verifica conectividade primeiro
         const online = navigator.onLine;
         setConnectionStatus(online ? 'online' : 'offline');
         
-        if (online && session) {
-          // Se voltou online, força um refresh preventivo
-          await keepSessionAlive();
+        if (!online) {
+          console.log('[Auth] Offline - pulando manutenção de sessão');
+          return;
+        }
+
+        console.log('[Auth] Verificando e mantendo sessão...');
+        
+        // Tenta refresh da sessão
+        const { data, error } = await supabase.auth.refreshSession();
+        
+        if (error) {
+          console.warn('[Auth] Erro no refresh, tentando recuperar:', error.message);
+          const recovered = await recoverSession();
+          if (!recovered) {
+            console.warn('[Auth] Não foi possível recuperar a sessão');
+          } else {
+            console.log('[Auth] Sessão recuperada com sucesso');
+            sessionRecoveryAttempts = 0;
+          }
+        } else {
+          console.log('[Auth] Sessão mantida com sucesso');
+          sessionRecoveryAttempts = 0;
         }
       } catch (e) {
-        console.warn('[Auth] Erro na verificação de rede:', e);
+        console.warn('[Auth] Erro na manutenção de sessão:', e.message);
+        await recoverSession();
+      } finally {
+        isRefreshing = false;
       }
     };
 
-    // Múltiplos intervalos para garantir funcionamento 24/7:
-    
-    // 1. Keep alive principal - a cada 3 minutos
-    keepAliveInterval = setInterval(keepSessionAlive, 3 * 60 * 1000);
-    
-    // 2. Health check - a cada 1 minuto
-    healthCheckInterval = setInterval(healthCheck, 60 * 1000);
-    
-    // 3. Network check - a cada 30 segundos
-    networkCheckInterval = setInterval(checkNetworkAndRecover, 30 * 1000);
+    // ÚNICO intervalo - a cada 15 minutos (muito mais eficiente)
+    keepAliveInterval = setInterval(maintainSession, 15 * 60 * 1000);
 
-    // Listeners para eventos de rede
+    // Listeners para eventos de rede (mais eficientes)
     const handleOnline = () => {
-      console.log('[Auth] Rede restaurada, renovando sessão...');
+      console.log('[Auth] Rede restaurada');
       setConnectionStatus('online');
-      keepSessionAlive();
+      // Executa manutenção após reconectar (com delay para estabilizar)
+      setTimeout(maintainSession, 2000);
     };
 
     const handleOffline = () => {
@@ -271,13 +252,11 @@ export function AuthProvider({ children }) {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Executa um keep alive imediato
-    keepSessionAlive();
+    // Executa manutenção inicial (com delay para evitar conflitos)
+    setTimeout(maintainSession, 5000);
 
     return () => {
       if (keepAliveInterval) clearInterval(keepAliveInterval);
-      if (healthCheckInterval) clearInterval(healthCheckInterval);
-      if (networkCheckInterval) clearInterval(networkCheckInterval);
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
     };
