@@ -15,9 +15,37 @@ export const supabase = VITE_SUPABASE_URL && VITE_SUPABASE_ANON_KEY
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
-        storageKey: 'oficina-auth',
-        // Configuração para sessão ilimitada - refresh muito antes de expirar
-        refreshThreshold: 1800, // 30 minutos antes de expirar
+        storageKey: 'oficina-auth-v2',
+        // Configurações para sessão 24/7 sem interrupções
+        refreshThreshold: 3600, // 1 hora antes de expirar (mais seguro)
+        storage: {
+          getItem: (key) => {
+            try {
+              return localStorage.getItem(key);
+            } catch {
+              return null;
+            }
+          },
+          setItem: (key, value) => {
+            try {
+              localStorage.setItem(key, value);
+            } catch {
+              // Silently fail if storage is not available
+            }
+          },
+          removeItem: (key) => {
+            try {
+              localStorage.removeItem(key);
+            } catch {
+              // Silently fail if storage is not available
+            }
+          }
+        }
       },
+      global: {
+        headers: {
+          'X-Client-Info': 'oficina-web@1.0.0'
+        }
+      }
     })
   : undefined;

@@ -87,13 +87,44 @@ async function request(method, path, { query, body, headers: extraHeaders, timeo
     if (TOKEN) {
       headers['Authorization'] = `Bearer ${TOKEN}`;
     } else if (supabase) {
-      // Simplesmente pega o token atual da sessão
+      // Sistema robusto para obter token com fallback
       try {
-        const { data } = await supabase.auth.getSession();
-        const accessToken = data?.session?.access_token;
-        if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+        let accessToken = null;
+        
+        // Primeira tentativa: sessão atual
+        try {
+          const { data } = await supabase.auth.getSession();
+          accessToken = data?.session?.access_token;
+        } catch (sessionError) {
+          console.warn('[API] Erro ao obter sessão, tentando recuperar:', sessionError);
+          
+          // Segunda tentativa: refresh da sessão
+          try {
+            const { data: refreshData } = await supabase.auth.refreshSession();
+            accessToken = refreshData?.session?.access_token;
+          } catch (refreshError) {
+            console.warn('[API] Erro no refresh, tentando storage:', refreshError);
+            
+            // Terceira tentativa: token do localStorage
+            try {
+              const storedSession = localStorage.getItem('oficina-auth-v2');
+              if (storedSession) {
+                const parsed = JSON.parse(storedSession);
+                accessToken = parsed.access_token;
+              }
+            } catch (storageError) {
+              console.warn('[API] Erro ao acessar storage:', storageError);
+            }
+          }
+        }
+        
+        if (accessToken) {
+          headers['Authorization'] = `Bearer ${accessToken}`;
+        } else {
+          console.warn('[API] Nenhum token disponível');
+        }
       } catch (e) {
-        console.warn('[API] Failed to get session:', e);
+        console.warn('[API] Erro crítico ao obter token:', e);
       }
     }
   }
@@ -108,14 +139,25 @@ async function request(method, path, { query, body, headers: extraHeaders, timeo
     const status = response.status;
     const text = await response.text().catch(() => '');
 
-    // For 401, attempt one silent token refresh + retry before forcing logout
+    // Para 401, tenta múltiplas estratégias de recuperação antes de deslogar
     if (status === 401 && supabase) {
+      console.log('[API] Token inválido (401), tentando recuperar...');
+      
       try {
-        // Ensure only one refresh attempt runs concurrently
+        let newToken = null;
+        
+        // Estratégia 1: Refresh da sessão atual
         if (!tokenRefreshPromise) {
           tokenRefreshPromise = supabase.auth
             .refreshSession()
-            .catch(() => null)
+            .then(result => {
+              console.log('[API] Resultado do refresh:', !!result?.data?.session);
+              return result;
+            })
+            .catch(error => {
+              console.warn('[API] Refresh falhou:', error);
+              return null;
+            })
             .finally(() => { 
               tokenRefreshPromise = null; 
             });
@@ -123,10 +165,48 @@ async function request(method, path, { query, body, headers: extraHeaders, timeo
         
         const refreshResult = await tokenRefreshPromise;
         
-        // Only retry if refresh was successful
-        if (refreshResult && refreshResult.data?.session?.access_token) {
+        if (refreshResult?.data?.session?.access_token) {
+          newToken = refreshResult.data.session.access_token;
+          console.log('[API] Token recuperado via refresh');
+        } else {
+          // Estratégia 2: Tentar obter nova sessão
+          console.log('[API] Refresh falhou, tentando obter nova sessão...');
+          try {
+            const { data: sessionData } = await supabase.auth.getSession();
+            if (sessionData?.session?.access_token) {
+              newToken = sessionData.session.access_token;
+              console.log('[API] Token recuperado via getSession');
+            }
+          } catch (sessionError) {
+            console.warn('[API] getSession falhou:', sessionError);
+            
+            // Estratégia 3: Tentar recuperar do localStorage e fazer refresh
+            try {
+              const storedSession = localStorage.getItem('oficina-auth-v2');
+              if (storedSession) {
+                const parsed = JSON.parse(storedSession);
+                if (parsed.refresh_token) {
+                  console.log('[API] Tentando refresh com token do storage...');
+                  const { data: storageRefreshData } = await supabase.auth.refreshSession({
+                    refresh_token: parsed.refresh_token
+                  });
+                  if (storageRefreshData?.session?.access_token) {
+                    newToken = storageRefreshData.session.access_token;
+                    console.log('[API] Token recuperado via storage refresh');
+                  }
+                }
+              }
+            } catch (storageError) {
+              console.warn('[API] Recuperação via storage falhou:', storageError);
+            }
+          }
+        }
+        
+        // Se conseguiu um novo token, tenta a requisição novamente
+        if (newToken) {
+          console.log('[API] Tentando requisição com novo token...');
           const retryHeaders = { ...headers };
-          retryHeaders['Authorization'] = `Bearer ${refreshResult.data.session.access_token}`;
+          retryHeaders['Authorization'] = `Bearer ${newToken}`;
 
           response = await doFetch(url.toString(), {
             method,
@@ -135,27 +215,36 @@ async function request(method, path, { query, body, headers: extraHeaders, timeo
           }, timeoutMs);
 
           if (response.ok) {
+            console.log('[API] Requisição bem-sucedida após recuperação de token');
             const ct = response.headers.get('content-type') || '';
             if (ct.includes('application/json')) return response.json();
             // If server returned HTML due to mis-route, treat as error
             throw new Error('invalid_content_type');
+          } else {
+            console.warn('[API] Requisição falhou mesmo com novo token:', response.status);
           }
+        } else {
+          console.warn('[API] Não foi possível recuperar token válido');
         }
-      } catch (refreshError) {
-        console.warn('[API] Token refresh failed:', refreshError);
-        // fall through to sign-out below
+      } catch (recoveryError) {
+        console.warn('[API] Erro na recuperação de token:', recoveryError);
       }
 
-      // Only sign out if we're not already on the login page
+      // Só desloga se realmente não conseguiu recuperar E não está na página de login
       if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
+        console.log('[API] Todas as tentativas de recuperação falharam, redirecionando para login...');
         try { 
           await supabase.auth.signOut(); 
-          window.location.assign('/login'); 
         } catch (signOutError) {
           console.warn('[API] Sign out failed:', signOutError);
-          // Force redirect even if signOut fails
-          window.location.assign('/login');
         }
+        // Aguarda um pouco antes de redirecionar para dar tempo de outras recuperações
+        setTimeout(() => {
+          if (!window.location.pathname.startsWith('/login')) {
+            window.location.assign('/login');
+          }
+        }, 1000);
+        return; // Não continua com o erro
       }
     }
     throw new Error(`API ${method} ${url.pathname} failed: ${status} ${response.statusText} ${text}`);

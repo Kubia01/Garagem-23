@@ -4,7 +4,6 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { useAuth } from '@/hooks/useAuth.jsx';
-import { useNetworkRecovery } from '@/hooks/useNetworkRecovery';
 import {
   LayoutDashboard,
   Users,
@@ -82,13 +81,10 @@ function buildNavigationItems(role) {
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
-  const { user, profile, role, signOut } = useAuth();
+  const { user, profile, role, connectionStatus, signOut } = useAuth();
   const navigationItems = buildNavigationItems(role);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [lastPing, setLastPing] = useState(Date.now());
-  
-  // Enable network recovery
-  useNetworkRecovery();
 
   // Monitor network connectivity
   useEffect(() => {
@@ -232,4 +228,3 @@ export default function Layout({ children, currentPageName }) {
     </SidebarProvider>
   );
 }
-
