@@ -81,19 +81,28 @@ async function request(method, path, { query, body, headers: extraHeaders, timeo
     // For 401, attempt one silent token refresh + retry before forcing logout
     if (status === 401 && supabase) {
       try {
+        // Ensure only one refresh attempt runs concurrently
         if (!tokenRefreshPromise) {
-          tokenRefreshPromise = supabase.auth.refreshSession()
+          tokenRefreshPromise = supabase.auth
+            .refreshSession()
             .catch(() => null)
             .finally(() => { tokenRefreshPromise = null; });
         }
         await tokenRefreshPromise;
 
-        // Rebuild headers with possibly updated access token
+        // Always replace Authorization with the latest token before retrying
         const retryHeaders = { ...headers };
-        if (!retryHeaders['Authorization']) {
+        try {
           const { data: after } = await supabase.auth.getSession();
           const retryAccess = after?.session?.access_token;
-          if (retryAccess) retryHeaders['Authorization'] = `Bearer ${retryAccess}`;
+          if (retryAccess) {
+            retryHeaders['Authorization'] = `Bearer ${retryAccess}`;
+          } else {
+            // Remove stale header if present
+            delete retryHeaders['Authorization'];
+          }
+        } catch (_) {
+          // If we can't read a session, fall back to original headers (likely to fail and sign out below)
         }
 
         response = await doFetch(url.toString(), {
