@@ -13,8 +13,8 @@ export function useNetworkRecovery() {
         try {
           // Try to refresh the session when coming back online
           const { supabase } = await import('@/lib/supabaseClient');
-          if (supabase?.supabase) {
-            await supabase.supabase.auth.refreshSession();
+          if (supabase) {
+            await supabase.auth.refreshSession();
           }
         } catch (error) {
           console.warn('[NetworkRecovery] Failed to refresh session:', error);
