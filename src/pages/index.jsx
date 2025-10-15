@@ -36,7 +36,18 @@ function Protected({ children, pageName }) {
     const { isReady, session, role } = useAuth();
     if (!isReady) return null; // optionally a loader
     if (!session) return <Navigate to="/login" replace />;
-    if (pageName && !hasAccess(role, pageName)) return <Navigate to="/" replace />;
+    if (pageName && !hasAccess(role, pageName)) {
+        // Render a simple 403 page instead of redirecting to Dashboard
+        return (
+            <div className="p-8">
+                <div className="max-w-3xl mx-auto text-center space-y-3">
+                    <h2 className="text-2xl font-bold">Acesso negado</h2>
+                    <p className="text-gray-600">Você não tem permissão para visualizar esta página.</p>
+                    <a href="/" className="text-blue-600 hover:underline">Voltar ao Dashboard</a>
+                </div>
+            </div>
+        );
+    }
     return children;
 }
 
