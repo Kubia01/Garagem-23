@@ -15,6 +15,7 @@ export function AuthProvider({ children }) {
   const [isReady, setIsReady] = useState(false);
   const [session, setSession] = useState();
   const [profile, setProfile] = useState();
+  const [lastActivity, setLastActivity] = useState(Date.now());
 
   useEffect(() => {
     if (!supabase) {
@@ -23,6 +24,7 @@ export function AuthProvider({ children }) {
     }
 
     let mounted = true;
+    let authListener = null;
 
     const init = async () => {
       try {
@@ -42,28 +44,105 @@ export function AuthProvider({ children }) {
       }
     };
 
-    const { data: listener } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      setSession(newSession || undefined);
-      if (newSession?.user?.id) {
-        await loadProfile(newSession.user.id);
-      } else {
-        setProfile(undefined);
+    // Set up auth state listener with better error handling
+    const setupAuthListener = () => {
+      try {
+        const { data: listener } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+          if (!mounted) return;
+          
+          console.log('[Auth] State change:', event, !!newSession);
+          
+          // Handle different auth events
+          if (event === 'SIGNED_OUT') {
+            setSession(undefined);
+            setProfile(undefined);
+          } else if (event === 'TOKEN_REFRESHED' || event === 'SIGNED_IN') {
+            setSession(newSession || undefined);
+            if (newSession?.user?.id) {
+              await loadProfile(newSession.user.id);
+            }
+          } else {
+            setSession(newSession || undefined);
+            if (newSession?.user?.id) {
+              await loadProfile(newSession.user.id);
+            } else {
+              setProfile(undefined);
+            }
+          }
+        });
+        authListener = listener;
+      } catch (e) {
+        console.warn('[Auth] Failed to setup listener:', e);
       }
-    });
+    };
 
     // Safety: ensure readiness even if init hangs for any reason
     const readyTimeout = setTimeout(() => {
       if (mounted) setIsReady(true);
-    }, 2000);
+    }, 3000);
 
     init();
+    setupAuthListener();
 
     return () => {
       mounted = false;
       clearTimeout(readyTimeout);
-      listener?.subscription?.unsubscribe?.();
+      if (authListener?.subscription?.unsubscribe) {
+        try {
+          authListener.subscription.unsubscribe();
+        } catch (e) {
+          console.warn('[Auth] Failed to unsubscribe listener:', e);
+        }
+      }
     };
   }, []);
+
+  // Activity tracking and session keepalive
+  useEffect(() => {
+    if (!session || !supabase) return;
+
+    let activityTimer;
+    let heartbeatInterval;
+
+    const updateActivity = () => {
+      setLastActivity(Date.now());
+    };
+
+    const checkSessionHealth = async () => {
+      try {
+        const { data, error } = await supabase.auth.getSession();
+        if (error || !data?.session) {
+          console.warn('[Auth] Session health check failed, refreshing...');
+          await supabase.auth.refreshSession();
+        }
+      } catch (e) {
+        console.warn('[Auth] Session health check error:', e);
+      }
+    };
+
+    // Track user activity
+    const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click'];
+    events.forEach(event => {
+      document.addEventListener(event, updateActivity, { passive: true });
+    });
+
+    // Check session health every 5 minutes when user is active
+    heartbeatInterval = setInterval(() => {
+      const timeSinceActivity = Date.now() - lastActivity;
+      // Only check if user was active in the last 10 minutes
+      if (timeSinceActivity < 10 * 60 * 1000) {
+        checkSessionHealth();
+      }
+    }, 5 * 60 * 1000);
+
+    return () => {
+      events.forEach(event => {
+        document.removeEventListener(event, updateActivity);
+      });
+      if (heartbeatInterval) clearInterval(heartbeatInterval);
+      if (activityTimer) clearTimeout(activityTimer);
+    };
+  }, [session, lastActivity]);
 
   const loadProfile = async (userId) => {
     try {
