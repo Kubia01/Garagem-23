@@ -18,17 +18,18 @@ export function hasAccess(role: string | undefined, pageName: string): boolean {
         .replace(/\s+/g, '')
         .replace(/-/g, '');
     if (role === 'manager') {
-        // example restriction: block access to suppliers page
-        return normalized !== 'suppliers';
+        // Managers have access to all standard pages
+        if (normalized === 'adminusers') return false; // admins only
+        return true;
     }
     if (role === 'operator') {
         // allow core operational pages only
         const allowed = [
             'dashboard', 'customers', 'vehicles', 'quotes', 'quotedetail',
             'serviceorders', 'vehiclehistory', 'vehiclesearch', 'reminders', 'pendingpayments',
-            // Expanded access
             'servicecatalog', 'suppliers', 'newquote'
         ];
+        if (normalized === 'adminusers') return false; // admins only
         return allowed.includes(normalized);
     }
     return false;
