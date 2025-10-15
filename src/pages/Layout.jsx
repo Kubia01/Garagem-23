@@ -1,9 +1,10 @@
 
 
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { useAuth } from '@/hooks/useAuth.jsx';
+import { useNetworkRecovery } from '@/hooks/useNetworkRecovery';
 import {
   LayoutDashboard,
   Users,
@@ -12,7 +13,9 @@ import {
   Bell,
   Menu,
   X,
-  Search
+  Search,
+  Wifi,
+  WifiOff
 } from "lucide-react";
 import {
   Sidebar,
@@ -81,6 +84,45 @@ export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const { user, profile, role, signOut } = useAuth();
   const navigationItems = buildNavigationItems(role);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [lastPing, setLastPing] = useState(Date.now());
+  
+  // Enable network recovery
+  useNetworkRecovery();
+
+  // Monitor network connectivity
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    // Periodic connectivity check
+    const pingInterval = setInterval(async () => {
+      try {
+        const response = await fetch('/api/health', { 
+          method: 'HEAD',
+          cache: 'no-cache',
+          signal: AbortSignal.timeout(5000)
+        });
+        if (response.ok) {
+          setLastPing(Date.now());
+          if (!isOnline) setIsOnline(true);
+        } else {
+          setIsOnline(false);
+        }
+      } catch {
+        setIsOnline(false);
+      }
+    }, 30000); // Check every 30 seconds
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      clearInterval(pingInterval);
+    };
+  }, [isOnline]);
 
   return (
     <SidebarProvider>
@@ -155,6 +197,16 @@ export default function Layout({ children, currentPageName }) {
                 </div>
               </div>
               <div className="flex items-center gap-3 text-sm text-gray-700">
+                {/* Connectivity indicator */}
+                <div className={`flex items-center gap-1 px-2 py-1 rounded-md ${
+                  isOnline ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+                }`}>
+                  {isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+                  <span className="text-xs hidden sm:inline">
+                    {isOnline ? 'Online' : 'Offline'}
+                  </span>
+                </div>
+                
                 {profile?.full_name && (
                   <span className="hidden sm:inline">{profile.full_name}</span>
                 )}

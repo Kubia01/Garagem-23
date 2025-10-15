@@ -143,6 +143,14 @@ export default async function handler(req, res) {
   const [resource, idMaybe] = restPath.split('/');
   const table = resourceToTable[resource];
 
+  // Health check endpoint
+  if (resource === 'health') {
+    cors(res);
+    res.statusCode = 200;
+    res.setHeader('Content-Type', 'application/json');
+    return res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }));
+  }
+
   // Auth for non-admin routes: allow API_SHARED_SECRET OR a valid Supabase JWT
   if (resource !== 'admin') {
     const authHeader = req.headers['authorization'] || '';

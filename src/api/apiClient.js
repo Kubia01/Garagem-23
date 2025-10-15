@@ -17,8 +17,8 @@ const AUTH_HEADER = import.meta.env.VITE_API_AUTH_HEADER;
 const AUTH_VALUE = import.meta.env.VITE_API_AUTH_VALUE;
 const TOKEN = import.meta.env.VITE_API_TOKEN;
 
-// Client-side request timeout (ms)
-const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_REQUEST_TIMEOUT_MS || 20000);
+// Client-side request timeout (ms) - Increased to 60 seconds to prevent premature timeouts
+const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_REQUEST_TIMEOUT_MS || 60000);
 
 // Ensure only one refresh runs at a time
 let tokenRefreshPromise = null;
@@ -30,16 +30,41 @@ function withTimeout(fetchPromise, timeoutMs) {
     .finally(() => clearTimeout(timerId));
 }
 
+// Exponential backoff retry for network errors
+async function retryWithBackoff(fn, maxRetries = 3, baseDelay = 1000) {
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      const isLastAttempt = attempt === maxRetries - 1;
+      const isRetryableError = error?.name === 'AbortError' || 
+                               error?.message === 'request_timeout' ||
+                               (error?.message && error.message.includes('fetch'));
+      
+      if (isLastAttempt || !isRetryableError) {
+        throw error;
+      }
+      
+      const delay = baseDelay * Math.pow(2, attempt) + Math.random() * 1000;
+      console.warn(`[API] Request failed (attempt ${attempt + 1}), retrying in ${delay}ms:`, error.message);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+}
+
 async function doFetch(url, options, timeoutMs) {
   const exec = (signal) => fetch(url, { ...options, signal });
-  try {
-    return await withTimeout(exec, timeoutMs || REQUEST_TIMEOUT_MS);
-  } catch (e) {
-    if (e?.name === 'AbortError') {
-      throw new Error('request_timeout');
+  
+  return retryWithBackoff(async () => {
+    try {
+      return await withTimeout(exec, timeoutMs || REQUEST_TIMEOUT_MS);
+    } catch (e) {
+      if (e?.name === 'AbortError') {
+        throw new Error('request_timeout');
+      }
+      throw e;
     }
-    throw e;
-  }
+  });
 }
 
 async function request(method, path, { query, body, headers: extraHeaders, timeoutMs } = {}) {
@@ -86,44 +111,46 @@ async function request(method, path, { query, body, headers: extraHeaders, timeo
           tokenRefreshPromise = supabase.auth
             .refreshSession()
             .catch(() => null)
-            .finally(() => { tokenRefreshPromise = null; });
+            .finally(() => { 
+              tokenRefreshPromise = null; 
+            });
         }
-        await tokenRefreshPromise;
+        
+        const refreshResult = await tokenRefreshPromise;
+        
+        // Only retry if refresh was successful
+        if (refreshResult && refreshResult.data?.session?.access_token) {
+          const retryHeaders = { ...headers };
+          retryHeaders['Authorization'] = `Bearer ${refreshResult.data.session.access_token}`;
 
-        // Always replace Authorization with the latest token before retrying
-        const retryHeaders = { ...headers };
-        try {
-          const { data: after } = await supabase.auth.getSession();
-          const retryAccess = after?.session?.access_token;
-          if (retryAccess) {
-            retryHeaders['Authorization'] = `Bearer ${retryAccess}`;
-          } else {
-            // Remove stale header if present
-            delete retryHeaders['Authorization'];
+          response = await doFetch(url.toString(), {
+            method,
+            headers: retryHeaders,
+            body: body ? JSON.stringify(body) : undefined,
+          }, timeoutMs);
+
+          if (response.ok) {
+            const ct = response.headers.get('content-type') || '';
+            if (ct.includes('application/json')) return response.json();
+            // If server returned HTML due to mis-route, treat as error
+            throw new Error('invalid_content_type');
           }
-        } catch (_) {
-          // If we can't read a session, fall back to original headers (likely to fail and sign out below)
         }
-
-        response = await doFetch(url.toString(), {
-          method,
-          headers: retryHeaders,
-          body: body ? JSON.stringify(body) : undefined,
-        }, timeoutMs);
-
-        if (response.ok) {
-          const ct = response.headers.get('content-type') || '';
-          if (ct.includes('application/json')) return response.json();
-          // If server returned HTML due to mis-route, treat as error
-          throw new Error('invalid_content_type');
-        }
-      } catch (_) {
+      } catch (refreshError) {
+        console.warn('[API] Token refresh failed:', refreshError);
         // fall through to sign-out below
       }
 
-      try { await supabase.auth.signOut(); } catch (_) {}
+      // Only sign out if we're not already on the login page
       if (typeof window !== 'undefined' && !window.location.pathname.startsWith('/login')) {
-        try { window.location.assign('/login'); } catch (_) {}
+        try { 
+          await supabase.auth.signOut(); 
+          window.location.assign('/login'); 
+        } catch (signOutError) {
+          console.warn('[API] Sign out failed:', signOutError);
+          // Force redirect even if signOut fails
+          window.location.assign('/login');
+        }
       }
     }
     throw new Error(`API ${method} ${url.pathname} failed: ${status} ${response.statusText} ${text}`);
