@@ -1,5 +1,4 @@
 import { createClient } from '@supabase/supabase-js';
-import { AUTH_CONFIG } from '@/config/auth';
 
 // IMPORTANT: use direct access to import.meta.env so Vite can inline values at build time
 const { VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY } = import.meta.env;
@@ -11,5 +10,14 @@ if (!VITE_SUPABASE_URL || !VITE_SUPABASE_ANON_KEY) {
 }
 
 export const supabase = VITE_SUPABASE_URL && VITE_SUPABASE_ANON_KEY
-  ? createClient(VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, AUTH_CONFIG.SUPABASE_OPTIONS)
+  ? createClient(VITE_SUPABASE_URL, VITE_SUPABASE_ANON_KEY, {
+      auth: {
+        persistSession: true,
+        autoRefreshToken: true,
+        detectSessionInUrl: true,
+        storageKey: 'oficina-auth',
+        // Configuração para sessão ilimitada - refresh muito antes de expirar
+        refreshThreshold: 1800, // 30 minutos antes de expirar
+      },
+    })
   : undefined;
