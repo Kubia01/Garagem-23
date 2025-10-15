@@ -354,8 +354,69 @@ export default async function handler(req, res) {
 
     if (req.method === 'DELETE') {
       if (!idMaybe) return badRequest(res, 'missing_id');
-      const { error } = await supabase.from(table).delete().eq('id', idMaybe);
-      if (error) return badRequest(res, error.message);
+      
+      // Handle cascade delete for customers and vehicles
+      if (table === 'customers') {
+        // Delete related records in correct order
+        // 1. Delete maintenance reminders
+        await supabase.from('maintenance_reminders').delete().eq('customer_id', idMaybe);
+        
+        // 2. Delete quote items (through quotes)
+        const { data: quotes } = await supabase.from('quotes').select('id').eq('customer_id', idMaybe);
+        if (quotes && quotes.length > 0) {
+          const quoteIds = quotes.map(q => q.id);
+          await supabase.from('quote_items').delete().in('quote_id', quoteIds);
+        }
+        
+        // 3. Delete service orders
+        await supabase.from('service_orders').delete().eq('customer_id', idMaybe);
+        
+        // 4. Delete quotes
+        await supabase.from('quotes').delete().eq('customer_id', idMaybe);
+        
+        // 5. Delete vehicle mileage history for customer's vehicles
+        const { data: vehicles } = await supabase.from('vehicles').select('id').eq('customer_id', idMaybe);
+        if (vehicles && vehicles.length > 0) {
+          const vehicleIds = vehicles.map(v => v.id);
+          await supabase.from('vehicle_mileage_history').delete().in('vehicle_id', vehicleIds);
+        }
+        
+        // 6. Delete vehicles
+        await supabase.from('vehicles').delete().eq('customer_id', idMaybe);
+        
+        // 7. Finally delete the customer
+        const { error } = await supabase.from(table).delete().eq('id', idMaybe);
+        if (error) return badRequest(res, error.message);
+      } else if (table === 'vehicles') {
+        // Delete related records in correct order
+        // 1. Delete maintenance reminders
+        await supabase.from('maintenance_reminders').delete().eq('vehicle_id', idMaybe);
+        
+        // 2. Delete vehicle mileage history
+        await supabase.from('vehicle_mileage_history').delete().eq('vehicle_id', idMaybe);
+        
+        // 3. Delete quote items (through quotes)
+        const { data: quotes } = await supabase.from('quotes').select('id').eq('vehicle_id', idMaybe);
+        if (quotes && quotes.length > 0) {
+          const quoteIds = quotes.map(q => q.id);
+          await supabase.from('quote_items').delete().in('quote_id', quoteIds);
+        }
+        
+        // 4. Delete service orders
+        await supabase.from('service_orders').delete().eq('vehicle_id', idMaybe);
+        
+        // 5. Delete quotes
+        await supabase.from('quotes').delete().eq('vehicle_id', idMaybe);
+        
+        // 6. Finally delete the vehicle
+        const { error } = await supabase.from(table).delete().eq('id', idMaybe);
+        if (error) return badRequest(res, error.message);
+      } else {
+        // For other tables, use simple delete
+        const { error } = await supabase.from(table).delete().eq('id', idMaybe);
+        if (error) return badRequest(res, error.message);
+      }
+      
       return ok(res, {});
     }
 
