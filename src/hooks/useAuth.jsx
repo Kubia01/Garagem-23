@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { supabase } from '@/lib/supabaseClient';
+import { AUTH_CONFIG } from '@/config/auth';
 
 const AuthContext = createContext({
   isReady: false,
@@ -97,11 +98,10 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  // Activity tracking and session keepalive
+  // Continuous session keepalive - no activity tracking restrictions
   useEffect(() => {
     if (!session || !supabase) return;
 
-    let activityTimer;
     let heartbeatInterval;
 
     const updateActivity = () => {
@@ -126,21 +126,17 @@ export function AuthProvider({ children }) {
       document.addEventListener(event, updateActivity, { passive: true });
     });
 
-    // Check session health every 5 minutes when user is active
+    // ALWAYS check session health regardless of activity
+    // This ensures the session never expires and the UI never freezes
     heartbeatInterval = setInterval(() => {
-      const timeSinceActivity = Date.now() - lastActivity;
-      // Only check if user was active in the last 10 minutes
-      if (timeSinceActivity < 10 * 60 * 1000) {
-        checkSessionHealth();
-      }
-    }, 5 * 60 * 1000);
+      checkSessionHealth();
+    }, AUTH_CONFIG.HEALTH_CHECK_INTERVAL);
 
     return () => {
       events.forEach(event => {
         document.removeEventListener(event, updateActivity);
       });
       if (heartbeatInterval) clearInterval(heartbeatInterval);
-      if (activityTimer) clearTimeout(activityTimer);
     };
   }, [session, lastActivity]);
 

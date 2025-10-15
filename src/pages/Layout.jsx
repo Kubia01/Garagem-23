@@ -5,6 +5,8 @@ import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { useAuth } from '@/hooks/useAuth.jsx';
 import { useNetworkRecovery } from '@/hooks/useNetworkRecovery';
+import { useSessionKeepAlive } from '@/hooks/useSessionKeepAlive';
+import { AUTH_CONFIG } from '@/config/auth';
 import {
   LayoutDashboard,
   Users,
@@ -89,6 +91,9 @@ export default function Layout({ children, currentPageName }) {
   
   // Enable network recovery
   useNetworkRecovery();
+  
+  // Keep session alive indefinitely
+  useSessionKeepAlive();
 
   // Monitor network connectivity
   useEffect(() => {
@@ -98,13 +103,13 @@ export default function Layout({ children, currentPageName }) {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     
-    // Periodic connectivity check
+    // Periodic connectivity check - reduced frequency to prevent interference
     const pingInterval = setInterval(async () => {
       try {
         const response = await fetch('/api/health', { 
           method: 'HEAD',
           cache: 'no-cache',
-          signal: AbortSignal.timeout(5000)
+          signal: AbortSignal.timeout(10000) // Increased timeout
         });
         if (response.ok) {
           setLastPing(Date.now());
@@ -113,9 +118,11 @@ export default function Layout({ children, currentPageName }) {
           setIsOnline(false);
         }
       } catch {
-        setIsOnline(false);
+        // Don't change online status on timeout - only on actual network errors
+        const isNetworkError = !navigator.onLine;
+        if (isNetworkError) setIsOnline(false);
       }
-    }, 30000); // Check every 30 seconds
+    }, AUTH_CONFIG.NETWORK_CHECK_INTERVAL);
     
     return () => {
       window.removeEventListener('online', handleOnline);

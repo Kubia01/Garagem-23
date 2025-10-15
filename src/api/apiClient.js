@@ -2,6 +2,7 @@
 
 // Use direct import.meta.env access so Vite replaces at build time
 import { supabase } from '@/lib/supabaseClient';
+import { AUTH_CONFIG } from '@/config/auth';
 
 // Base URL and mapping
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
@@ -17,8 +18,8 @@ const AUTH_HEADER = import.meta.env.VITE_API_AUTH_HEADER;
 const AUTH_VALUE = import.meta.env.VITE_API_AUTH_VALUE;
 const TOKEN = import.meta.env.VITE_API_TOKEN;
 
-// Client-side request timeout (ms) - Increased to 60 seconds to prevent premature timeouts
-const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_REQUEST_TIMEOUT_MS || 60000);
+// Client-side request timeout (ms) - Use configuration to prevent premature timeouts
+const REQUEST_TIMEOUT_MS = Number(import.meta.env.VITE_API_REQUEST_TIMEOUT_MS || AUTH_CONFIG.REQUEST_TIMEOUT);
 
 // Ensure only one refresh runs at a time
 let tokenRefreshPromise = null;
@@ -87,9 +88,34 @@ async function request(method, path, { query, body, headers: extraHeaders, timeo
     if (TOKEN) {
       headers['Authorization'] = `Bearer ${TOKEN}`;
     } else if (supabase) {
-      const { data } = await supabase.auth.getSession();
-      const accessToken = data?.session?.access_token;
-      if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+      // Always try to refresh session before making requests to prevent token expiry
+      try {
+        const { data: currentSession } = await supabase.auth.getSession();
+        if (currentSession?.session?.access_token) {
+          // Check if token is close to expiry
+          const expiresAt = currentSession.session.expires_at;
+          const now = Math.floor(Date.now() / 1000);
+          const timeUntilExpiry = expiresAt - now;
+          
+          if (timeUntilExpiry < AUTH_CONFIG.TOKEN_REFRESH_THRESHOLD) {
+            console.log('[API] Token expires soon, refreshing...');
+            const { data: refreshedSession } = await supabase.auth.refreshSession();
+            if (refreshedSession?.session?.access_token) {
+              headers['Authorization'] = `Bearer ${refreshedSession.session.access_token}`;
+            } else {
+              headers['Authorization'] = `Bearer ${currentSession.session.access_token}`;
+            }
+          } else {
+            headers['Authorization'] = `Bearer ${currentSession.session.access_token}`;
+          }
+        }
+      } catch (e) {
+        console.warn('[API] Failed to check/refresh session:', e);
+        // Fallback to getting current session
+        const { data } = await supabase.auth.getSession();
+        const accessToken = data?.session?.access_token;
+        if (accessToken) headers['Authorization'] = `Bearer ${accessToken}`;
+      }
     }
   }
 
